@@ -1,0 +1,7 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Настройки{% endblock %}
+{% block content %}
+<section class="page-heading"><p class="eyebrow">СОСТОЯНИЕ ВОЗМОЖНОСТЕЙ</p><h1>Настройки</h1><p class="intro">Редакционная работа доступна администраторам. Секреты и подключения управляются на хостинге.</p></section>
+<div class="cards"><article class="card"><h2>Работает</h2><p>Источники, ручное добавление и импорт файлов, отбор статей, редактирование, согласование, история и экспорт текста.</p></article><article class="card"><h2>ИИ</h2><p>Провайдер не подключён. Материалы создаёт редактор. Генерация и расходы API не выполняются.</p></article><article class="card"><h2>Интеграции</h2><p>Расписание, загрузка сайтов, Telegram, соцсети и отправка email не подключены. Данных подписчиков нет.</p></article></div>
+<section class="page-heading"><h2>Управление доступом</h2><p>Доступ имеют только активные пользователи Django с правом is_staff. Самостоятельной регистрации нет.</p><a class="button button-secondary" href="{% url 'admin:index' %}">Администрирование Django</a><form method="post" action="{% url 'admin:logout' %}" class="toolbar">{% csrf_token %}<button class="button button-secondary">Выйти</button></form></section>
+{% endblock %}

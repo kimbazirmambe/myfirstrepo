@@ -14,12 +14,12 @@
     <nav aria-label="Основное меню">
       <a class="nav-item{% if request.resolver_match.url_name == 'home' %} active{% endif %}" href="{% url 'home' %}"{% if request.resolver_match.url_name == 'home' %} aria-current="page"{% endif %}>Главная</a>
       <a class="nav-item{% if request.resolver_match.namespace == 'sources' %} active{% endif %}" href="{% url 'sources:list' %}"{% if request.resolver_match.namespace == 'sources' %} aria-current="page"{% endif %}>Источники новостей</a>
-      <span class="nav-item" aria-disabled="true">Найденные статьи</span>
-      <span class="nav-item" aria-disabled="true">Подготовка публикаций</span>
-      <span class="nav-item" aria-disabled="true">История публикаций</span>
-      <span class="nav-item" aria-disabled="true">Настройки</span>
+      <a class="nav-item{% if request.resolver_match.url_name == 'articles' %} active{% endif %}" href="{% url 'newsroom:articles' %}"{% if request.resolver_match.url_name == 'articles' %} aria-current="page"{% endif %}>Найденные статьи</a>
+      <a class="nav-item{% if request.resolver_match.url_name == 'drafts' %} active{% endif %}" href="{% url 'newsroom:drafts' %}"{% if request.resolver_match.url_name == 'drafts' %} aria-current="page"{% endif %}>Подготовка публикаций</a>
+      <a class="nav-item{% if request.resolver_match.url_name == 'history' %} active{% endif %}" href="{% url 'newsroom:history' %}"{% if request.resolver_match.url_name == 'history' %} aria-current="page"{% endif %}>История публикаций</a>
+      <a class="nav-item{% if request.resolver_match.url_name == 'settings' %} active{% endif %}" href="{% url 'newsroom:settings' %}"{% if request.resolver_match.url_name == 'settings' %} aria-current="page"{% endif %}>Настройки</a>
     </nav>
-    <p class="sidebar-note">Остальные разделы появятся<br>на следующих этапах.</p>
+    <p class="sidebar-note">Материалы проходят<br>проверку редактором.</p>
   </aside>
   <main id="main">
     <header class="topbar"><span>{% block section_name %}Обзор рабочего пространства{% endblock %}</span><span class="badge">Marketing Hub</span></header>

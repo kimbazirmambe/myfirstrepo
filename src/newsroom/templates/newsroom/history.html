@@ -1,0 +1,7 @@
+{% extends "dashboard/base.html" %}
+{% block title %}История публикаций{% endblock %}
+{% block content %}
+<section class="page-heading"><p class="eyebrow">ЖУРНАЛ РЕДАКЦИИ</p><h1>История публикаций</h1><p class="intro">Сохранённые и утверждённые версии. Отправка в социальные сети и рассылки не выполняется.</p></section>
+{% for revision in page %}<article class="source-item"><h2><a href="{% url 'newsroom:draft' revision.draft.pk %}">{{ revision.subject|default:revision.draft.article.title }}</a></h2><p class="help-text">Версия {{ revision.version }} · {{ revision.get_status_display }} · {{ revision.actor.get_username|default:"Пользователь удалён" }} · {{ revision.created_at|date:"d.m.Y H:i" }} UTC</p><p class="excerpt">{{ revision.body|truncatechars:180 }}</p></article>{% empty %}<div class="empty-state"><p>История появится после сохранения первого материала.</p></div>{% endfor %}
+{% include "newsroom/pagination.html" %}
+{% endblock %}

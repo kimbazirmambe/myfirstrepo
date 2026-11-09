@@ -1,0 +1,11 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Редактирование материала{% endblock %}
+{% block content %}
+<section class="page-heading"><p class="eyebrow">{{ draft.get_channel_display }}</p><h1>{{ draft.subject|default:draft.article.title }}</h1><p class="intro">{{ draft.get_status_display }} · Версия {{ draft.version }}{% if draft.approved_at %} · Утвердил {{ draft.approved_by.get_username }} {{ draft.approved_at|date:"d.m.Y H:i" }} UTC{% endif %}</p></section>
+<p class="source-url">Основа: <a href="{% url 'newsroom:article' draft.article.pk %}">{{ draft.article.title }}</a> · <a href="{{ draft.article.url }}" rel="noopener noreferrer" target="_blank">Оригинал ↗</a></p>
+<div class="sources-layout">
+<section class="form-panel"><h2>Редактор</h2><p class="help-text">Любое сохранение создаёт новую версию и снимает предыдущее утверждение. ИИ-генерация не подключена.</p><form method="post">{% csrf_token %}{{ form.non_field_errors }}{% for field in form %}{% if field.is_hidden %}{{ field }}{% else %}<div class="form-field">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>{% endif %}{% endfor %}<button class="button button-primary">Сохранить новую версию</button></form></section>
+<section class="form-panel"><h2>Согласование</h2>{% if draft.status == 'approved' %}<p class="notification">Эта версия утверждена человеком. Ничего не отправлено.</p>{% else %}<form method="post" action="{% url 'newsroom:approve' draft.pk %}">{% csrf_token %}{{ approval.version }}<div class="form-field checkbox-field">{{ approval.reviewed }}{{ approval.reviewed.label_tag }}</div><button class="button button-primary">Утвердить версию</button></form>{% endif %}<p class="help-text">Ссылка на первоисточник включается в экспорт автоматически.</p><a class="button button-secondary" href="{% url 'newsroom:export' draft.pk %}">Скачать текст (.txt)</a></section>
+</div>
+<section class="page-heading"><h2>История версий</h2>{% for revision in revisions %}<details class="source-item"><summary>Версия {{ revision.version }} · {{ revision.get_status_display }} · {{ revision.actor.get_username|default:"Пользователь удалён" }} · {{ revision.created_at|date:"d.m.Y H:i" }} UTC</summary><h3>{{ revision.subject }}</h3><div class="prose">{{ revision.body|linebreaksbr }}</div></details>{% endfor %}</section>
+{% endblock %}
