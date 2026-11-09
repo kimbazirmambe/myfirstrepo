@@ -1,12 +1,35 @@
-"""Local development settings. Configure production separately before deployment."""
+"""Development defaults and explicit production settings for PythonAnywhere."""
+import os
 from pathlib import Path
+from django.core.exceptions import ImproperlyConfigured
 from django.core.management.utils import get_random_secret_key
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-# Ephemeral development key; no production credentials are stored in Git.
-SECRET_KEY = get_random_secret_key()
-DEBUG = True
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
+ENVIRONMENT = os.environ.get("DJANGO_ENV", "development")
+if ENVIRONMENT not in {"development", "production"}:
+    raise ImproperlyConfigured("DJANGO_ENV must be development or production")
+DEBUG = ENVIRONMENT == "development"
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "").strip()
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",")
+    if host.strip()
+]
+if DEBUG:
+    SECRET_KEY = SECRET_KEY or get_random_secret_key()
+    ALLOWED_HOSTS = ALLOWED_HOSTS or ["localhost", "127.0.0.1", "[::1]"]
+else:
+    if not SECRET_KEY:
+        raise ImproperlyConfigured("DJANGO_SECRET_KEY is required in production")
+    if not ALLOWED_HOSTS or "*" in ALLOWED_HOSTS:
+        raise ImproperlyConfigured("Set DJANGO_ALLOWED_HOSTS to the production hostname")
+    # PythonAnywhere terminates HTTPS and sets this header at its trusted proxy.
+    # Recheck the proxy contract before deploying to a different host.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 3600
 INSTALLED_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -41,5 +64,6 @@ LANGUAGE_CODE = "ru"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR.parent / ".local" / "static"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
