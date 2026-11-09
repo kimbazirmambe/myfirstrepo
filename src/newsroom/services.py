@@ -90,7 +90,7 @@ def import_articles(source, content, format, keywords="", exclude=""):
 
 def snapshot(draft, actor):
     DraftRevision.objects.create(draft=draft, version=draft.version, subject=draft.subject,
-                                 body=draft.body, status=draft.status, actor=actor)
+                                 body=draft.body, status=draft.status, actor=actor, automated=actor is None)
 
 
 class VersionConflict(Exception):

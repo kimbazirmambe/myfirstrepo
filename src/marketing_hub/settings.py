@@ -70,3 +70,6 @@ USE_TZ = True
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR.parent / ".local" / "static"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Machine-to-machine collection; empty means endpoints are disabled.
+COLLECTOR_TOKEN = os.environ.get("COLLECTOR_TOKEN", "")

@@ -14,6 +14,7 @@ class Article(models.Model):
     body = models.TextField("Доступное содержание / заметки", blank=True, max_length=20000)
     published_at = models.DateTimeField("Дата публикации", null=True, blank=True)
     discovered_at = models.DateTimeField(auto_now_add=True)
+    auto_prepared = models.BooleanField(default=False)
     state = models.CharField("Статус", max_length=12, choices=State.choices, default=State.NEW)
 
     class Meta:
@@ -37,6 +38,7 @@ class Draft(models.Model):
     channel = models.CharField("Формат", max_length=12, choices=Channel.choices)
     subject = models.CharField("Тема email / рабочее название", max_length=200, blank=True)
     body = models.TextField("Текст материала", max_length=20000)
+    generation_method = models.CharField(max_length=20, default="manual", choices=[("manual", "Редактор"), ("factual_template", "Фактический шаблон (не ИИ)"), ("ai", "ИИ-черновик (требует проверки)")])
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT)
     version = models.PositiveIntegerField(default=1)
     approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
@@ -49,6 +51,7 @@ class Draft(models.Model):
 
 
 class DraftRevision(models.Model):
+    automated = models.BooleanField(default=False)
     draft = models.ForeignKey(Draft, on_delete=models.CASCADE, related_name="revisions")
     version = models.PositiveIntegerField()
     subject = models.CharField(max_length=200, blank=True)

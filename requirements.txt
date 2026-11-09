@@ -2,3 +2,11 @@ Django==5.2.19
 asgiref==3.13.0
 sqlparse==0.6.1
 tzdata==2025.2; sys_platform == "win32"
+
+# Automatic collection (standard Linux GitHub runner)
+beautifulsoup4==4.15.0
+feedparser==6.0.14
+feedparser-sgmllib==2.1.0
+Protego==0.7.0
+soupsieve==4.0.1
+typing_extensions==4.16.0

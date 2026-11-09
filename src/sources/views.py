@@ -1,5 +1,7 @@
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
+from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
@@ -13,11 +15,15 @@ def source_list(request):
     form = NewsSourceForm(request.POST if request.method == "POST" else None)
     if request.method == "POST" and form.is_valid():
         form.save()
-        messages.success(request, "Источник добавлен.")
+        if len(settings.COLLECTOR_TOKEN) >= 32:
+            messages.success(request, "Источник добавлен и поставлен в очередь автоматической проверки.")
+        else:
+            messages.warning(request, "Источник сохранён. Автосборщик ещё не подключён — до подключения статьи автоматически не появятся.")
         return redirect("sources:list")
     return render(request, "sources/source_list.html", {
+        "collector_configured": len(settings.COLLECTOR_TOKEN) >= 32,
         "form": form,
-        "sources": NewsSource.objects.all(),
+        "sources": NewsSource.objects.annotate(article_count=Count("article")),
     })
 
 
@@ -30,3 +36,30 @@ def source_delete(request, pk):
         messages.success(request, "Источник удалён.")
         return redirect("sources:list")
     return render(request, "sources/source_confirm_delete.html", {"source": source})
+
+
+@staff_member_required
+@require_http_methods(["GET", "POST"])
+def source_edit(request, pk):
+    source = get_object_or_404(NewsSource, pk=pk)
+    form = NewsSourceForm(request.POST if request.method == "POST" else None, instance=source)
+    if request.method == "POST" and form.is_valid():
+        source = form.save(commit=False)
+        source.collection_requested = True
+        source.collection_error = ""
+        source.save()
+        messages.success(request, "Источник обновлён; запрос на проверку сохранён.")
+        return redirect("sources:list")
+    return render(request, "sources/source_edit.html", {"form": form})
+
+
+@staff_member_required
+@require_http_methods(["POST"])
+def source_retry(request, pk):
+    source = get_object_or_404(NewsSource, pk=pk)
+    if source.is_active:
+        source.collection_requested = True
+        source.collection_error = ""
+        source.save(update_fields=["collection_requested", "collection_error"])
+        messages.success(request, "Запрос на проверку сохранён. Результат появится после ближайшего запуска подключённого сборщика.")
+    return redirect("sources:list")
