@@ -1,3 +1,4 @@
+from contextlib import closing
 import json
 import os
 from pathlib import Path
@@ -26,13 +27,14 @@ class HostingUpdateTests(SimpleTestCase):
             env = {k: v for k, v in os.environ.items() if not k.startswith("DJANGO_")}
             subprocess.run(command, env=env, capture_output=True, check=True, timeout=30)
             database = root / "src/db.sqlite3"
-            with sqlite3.connect(database) as db:
+            with closing(sqlite3.connect(database)) as db:
                 db.execute("INSERT INTO sources_newssource (name,rss_url,is_active,created_at) VALUES ('Keep','https://example.com/feed',1,'2026-11-09')")
+                db.commit()
             subprocess.run(command, env=env, capture_output=True, check=True, timeout=30)
             backups = list((root / ".local/backups").glob("*.sqlite3"))
             self.assertEqual(len(backups), 1)
             for path in (database, backups[0]):
-                with sqlite3.connect(path) as db:
+                with closing(sqlite3.connect(path)) as db:
                     self.assertEqual(db.execute("SELECT name FROM sources_newssource").fetchone()[0], "Keep")
             self.assertTrue((root / ".local/static/dashboard/style.css").is_file())
             self.assertTrue((root / ".local/static/admin/css/base.css").is_file())

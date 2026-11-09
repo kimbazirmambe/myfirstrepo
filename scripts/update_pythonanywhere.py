@@ -1,4 +1,5 @@
 """Prepare an existing PythonAnywhere checkout; never publishes or reloads it."""
+from contextlib import closing
 import argparse
 from datetime import datetime, timezone
 import json
@@ -46,9 +47,10 @@ def main():
         backup = backups / f"sqlite-{datetime.now(timezone.utc):%Y%m%d-%H%M%S}-{uuid.uuid4().hex[:8]}.sqlite3"
         fd = os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         os.close(fd)
-        with sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True) as source:
-            with sqlite3.connect(backup) as target:
-                source.backup(target)
+        with closing(sqlite3.connect(database.resolve().as_uri() + "?mode=ro", uri=True)) as source:
+            with closing(sqlite3.connect(backup)) as target:
+                with target:
+                    source.backup(target)
         print("SQLite backup saved in .local/backups (excluded from Git).")
     call_command("migrate", interactive=False)
     call_command("collectstatic", interactive=False)
