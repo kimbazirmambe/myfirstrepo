@@ -4,6 +4,8 @@ permissions:
   contents: read
 jobs:
   check:
+    env:
+      PYTHONUTF8: "1"
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
