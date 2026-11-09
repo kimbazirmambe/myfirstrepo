@@ -49,7 +49,7 @@ class PythonAnywhere:
                 if missing_ok and error.code == 404:
                     return None
                 # Retry only safe reads. Never duplicate a console command on an ambiguous failure.
-                if method == "GET" and error.code in {429, 502, 503, 504} and attempt < 2:
+                if method == "GET" and error.code in {429, 500, 502, 503, 504} and attempt < 2:
                     print(f"Temporary hosting API HTTP {error.code}; retrying read {attempt + 1}/2.")
                     delay = 5 * (attempt + 1)
                     if error.code == 429:
@@ -117,16 +117,12 @@ def main():
         return 1
     try:
         api = PythonAnywhere(token)
-        try:
-            app = api.json(f"/webapps/{DOMAIN}/")
-        except DeployError as error:
-            if error.status not in {502, 503, 504}:
-                raise
-            apps = api.json("/webapps/")
-            matches = [item for item in apps if isinstance(item, dict) and item.get("domain_name") == DOMAIN] if isinstance(apps, list) else []
-            if len(matches) != 1:
-                raise DeployError("Existing Web app metadata is unavailable; nothing changed.") from None
+        apps = api.json("/webapps/")
+        matches = [item for item in apps if isinstance(item, dict) and item.get("domain_name") == DOMAIN] if isinstance(apps, list) else []
+        if len(matches) == 1 and matches[0].get("virtualenv_path"):
             app = matches[0]
+        else:
+            app = api.json(f"/webapps/{DOMAIN}/")
         console = api.json(f"/consoles/{args.console}/")
         if not isinstance(console, dict) or str(console.get("id")) != str(args.console):
             raise DeployError("The specified console was not found in this account.")
