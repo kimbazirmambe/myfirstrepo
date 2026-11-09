@@ -1,0 +1,14 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Удаление источника{% endblock %}
+{% block section_name %}Источники новостей{% endblock %}
+{% block content %}
+<section class="page-heading"><p class="eyebrow">УДАЛЕНИЕ ИСТОЧНИКА</p><h1>Удалить источник?</h1><p class="intro">Источник «{{ source.name }}» будет удалён из списка. Отменить удаление нельзя.</p></section>
+<section class="form-panel confirmation">
+  <p class="source-url">{{ source.rss_url }}</p>
+  <form method="post" class="form-actions">
+    {% csrf_token %}
+    <button class="button button-danger" type="submit">Удалить источник</button>
+    <a class="button button-secondary" href="{% url 'sources:list' %}">Отмена</a>
+  </form>
+</section>
+{% endblock %}

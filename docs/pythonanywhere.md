@@ -139,3 +139,27 @@ python -m unittest discover -s tests -v
 После обновлений: загрузите согласованные изменения, установите зависимости, повторите шаг 3 с тем же секретным файлом и нажмите Reload. Не запускайте генерацию нового ключа повторно.
 
 Официальные справки: [Django на PythonAnywhere](https://help.pythonanywhere.com/pages/DeployExistingDjangoProject/), [статические файлы](https://help.pythonanywhere.com/pages/DjangoStaticFiles/), [проверки перед публикацией Django](https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/).
+
+
+## Создание администратора
+
+После миграций создайте администратора через стандартную команду Django. Из `~/myfirstrepo`, с активным виртуальным окружением, выполните в Bash-консоли следующий блок. Он загружает прежние секретные настройки и интерактивно спрашивает имя и пароль. Пароль не записывается в команду или исходники.
+
+```bash
+python -c '
+import json, os, sys
+from pathlib import Path
+config = Path.home() / ".config" / "marketing-hub" / "environment.json"
+os.environ.update(json.loads(config.read_text(encoding="utf-8")))
+os.environ["DJANGO_SETTINGS_MODULE"] = "marketing_hub.settings"
+sys.path.insert(0, str(Path.home() / "myfirstrepo" / "src"))
+import django
+django.setup()
+from django.core.management import call_command
+call_command("createsuperuser")
+'
+```
+
+Выберите уникальный длинный пароль, не отправляйте его в чат и не сохраняйте в Git. Если администратор уже есть, используйте существующий аккаунт. Для доступа к источникам необходимы `is_active=True` и `is_staff=True`; созданный командой суперпользователь имеет эти признаки. Самостоятельной регистрации нет.
+
+После обновления проекта повторите `migrate` и `collectstatic` по шагу 3: стандартная админ-панель добавляет свою таблицу и CSS. После согласованного обновления сайта откройте «Источники новостей»: появится стандартная форма входа Django, после входа администратор вернётся в раздел. Остальные посетители не смогут читать или изменять источники; главная страница остаётся публичной.
