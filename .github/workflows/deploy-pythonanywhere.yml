@@ -1,0 +1,56 @@
+name: Update PythonAnywhere
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/deploy-pythonanywhere.yml'
+      - 'scripts/deploy_pythonanywhere.py'
+      - 'scripts/pa_remote_deploy.py'
+  workflow_run:
+    workflows: ['Workspace checks']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: marketing-hub-deployment
+  cancel-in-progress: false
+jobs:
+  access-check:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Read-only hosting access check
+        run: python scripts/deploy_pythonanywhere.py --probe --console 49083061
+        env:
+          PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
+  deploy:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Back up and prepare tested version on existing host
+        run: python scripts/deploy_pythonanywhere.py --console 49083061 --commit "$TESTED_COMMIT"
+        env:
+          PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
+          TESTED_COMMIT: ${{ github.event.workflow_run.head_sha }}
+      - run: python -m pip install -r requirements.txt
+      - name: Derive collector-only credential
+        run: python scripts/actions_credentials.py
+        env:
+          PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
+      - name: Verify published queue and perform first collection
+        run: python scripts/run_collector.py
+        env:
+          HUB_BASE_URL: https://kimbazirmambe.pythonanywhere.com
+          AI_ENABLED: 'false'

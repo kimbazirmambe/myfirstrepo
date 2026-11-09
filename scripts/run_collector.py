@@ -62,7 +62,9 @@ def main():
             except Exception:
                 payload["error"] = "Не удалось разобрать источник; нужен отдельный обработчик."
             result = hub_call(base, token, "/collector/results/", payload)
-            print(f"Source {source['id']}: added={result['added']}, drafts={result['drafts']}, error={bool(payload.get('error'))}")
+            print(f"Source {source['id']}: added={result['added']}, drafts={result['drafts']}, duplicates={result.get('duplicates', 0)}, filtered={result.get('filtered', 0)}, error={bool(payload.get('error'))}")
+            if payload.get("error"):
+                print("Collection diagnostic: " + payload["error"])
     except (RuntimeError, KeyError, TypeError):
         print("Collector failed. Check the Hub URL, deployment and matching machine secret. Secret values are never printed.", file=sys.stderr)
         return 1
