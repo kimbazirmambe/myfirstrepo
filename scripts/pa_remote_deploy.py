@@ -1,11 +1,10 @@
 """Runs on the owner's PythonAnywhere account. Never prints configuration values."""
 from contextlib import closing
 from datetime import datetime, timezone
-import hashlib
-import hmac
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import sqlite3
 import subprocess
@@ -31,9 +30,9 @@ def deploy(spec):
     result = {"state": "running", "stage": stage}
     private_json(result_path, result)
     try:
-        token = os.environ.get("API_TOKEN", "")
-        if not token or hashlib.sha256(token.encode()).hexdigest() != spec["api_token_fingerprint"]:
-            raise RuntimeError("console_token_unavailable")
+        token = spec.get("collector_token", "")
+        if not isinstance(token, str) or not re.fullmatch(r"[a-f0-9]{64}", token):
+            raise RuntimeError("collector_credential_invalid")
         if not root.is_dir() or not (root / ".git").is_dir():
             raise RuntimeError("checkout_missing")
         # Use the exact interpreter and WSGI path supplied by the owning Web app.
@@ -101,7 +100,7 @@ def deploy(spec):
             values = json.loads(config.read_text()) if config.exists() else {}
             values.update(DJANGO_ENV="production", DJANGO_SECRET_KEY=current["secret"],
                           DJANGO_ALLOWED_HOSTS=",".join(current["hosts"]),
-                          COLLECTOR_TOKEN=hmac.new(token.encode(), b"marketing-hub:collector:v1", hashlib.sha256).hexdigest())
+                          COLLECTOR_TOKEN=token)
             private_json(config, values)
             stage = "migrations_and_static"
             command([str(python), "scripts/update_pythonanywhere.py", "--apply", "--config", str(config)])
@@ -129,7 +128,7 @@ def deploy(spec):
             result = {"state": "prepared", "stage": "ready_for_reload", "commit": spec["commit"],
                       "previous_commit": before, "backup": str(backup), "wsgi_backup": str(backup_dir / "wsgi.py")}
     except Exception as error:
-        allowed = {"console_token_unavailable", "checkout_missing", "runtime_path_missing", "checkout_has_local_changes",
+        allowed = {"collector_credential_invalid", "checkout_missing", "runtime_path_missing", "checkout_has_local_changes",
                    "existing_production_settings_invalid", "nonstandard_database_requires_review", "main_changed_since_ci", "record_count_decreased"}
         code = str(error) if isinstance(error, RuntimeError) and str(error) in allowed else type(error).__name__
         result = {"state": "failed", "stage": stage, "error": code}
@@ -138,4 +137,9 @@ def deploy(spec):
 
 
 if __name__ == "__main__":
-    raise SystemExit(deploy(json.loads(Path(sys.argv[1]).read_text())))
+    spec_path = Path(sys.argv[1])
+    spec_path.chmod(0o600)
+    spec = json.loads(spec_path.read_text())
+    # The spec lives in a chmod-700 directory; remove its one-time secret immediately.
+    spec_path.unlink()
+    raise SystemExit(deploy(spec))
