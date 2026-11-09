@@ -129,3 +129,17 @@ class HostingActionsTests(unittest.TestCase):
                 self.assertEqual(db.execute("SELECT name FROM sources_newssource").fetchone()[0], "Keep")
             with contextlib.closing(sqlite3.connect(root / "src/db.sqlite3")) as db:
                 self.assertEqual(db.execute("SELECT name FROM sources_newssource").fetchone()[0], "Keep")
+
+    def test_transient_read_failure_retries_but_does_not_repeat_posts(self):
+        from unittest.mock import MagicMock
+        api = PythonAnywhere(secrets.token_urlsafe(32))
+        response = MagicMock()
+        response.__enter__.return_value.read.return_value = b'{}'
+        error = HTTPError('https://www.pythonanywhere.com/', 502, 'Gateway', {}, None)
+        with patch.object(api.opener, 'open', side_effect=[error, response]) as request, patch('deploy_pythonanywhere.time.sleep'), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(api.request('/cpu/'), b'{}')
+            self.assertEqual(request.call_count, 2)
+        with patch.object(api.opener, 'open', side_effect=error) as request:
+            with self.assertRaises(DeployError):
+                api.request('/consoles/1/send_input/', method='POST', data=b'x')
+            self.assertEqual(request.call_count, 1)

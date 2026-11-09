@@ -19,7 +19,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class DeployError(Exception):
-    pass
+    def __init__(self, message, status=None):
+        super().__init__(message)
+        self.status = status
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -36,15 +38,21 @@ class PythonAnywhere:
         headers = {"Authorization": "Token " + self.token}
         if content_type:
             headers["Content-Type"] = content_type
-        try:
-            with self.opener.open(Request(API + path, data=data, method=method, headers=headers), timeout=30) as response:
-                return response.read(128000)
-        except HTTPError as error:
-            if missing_ok and error.code == 404:
-                return None
-            raise DeployError(f"PythonAnywhere HTTP {error.code}; endpoint {path.split('/')[1]}. No credential values logged.") from None
-        except OSError:
-            raise DeployError("PythonAnywhere connection failed or timed out.") from None
+        for attempt in range(3):
+            try:
+                with self.opener.open(Request(API + path, data=data, method=method, headers=headers), timeout=30) as response:
+                    return response.read(128000)
+            except HTTPError as error:
+                if missing_ok and error.code == 404:
+                    return None
+                # Retry only safe reads. Never duplicate a console command on an ambiguous failure.
+                if method == "GET" and error.code in {429, 502, 503, 504} and attempt < 2:
+                    print(f"Temporary hosting API HTTP {error.code}; retrying read {attempt + 1}/2.")
+                    time.sleep(5 * (attempt + 1))
+                    continue
+                raise DeployError(f"PythonAnywhere HTTP {error.code}; endpoint {path.split('/')[1]}. No credential values logged.", error.code) from None
+            except OSError:
+                raise DeployError("PythonAnywhere connection failed or timed out.") from None
 
     def json(self, path):
         try:
@@ -98,14 +106,24 @@ def main():
         return 1
     try:
         api = PythonAnywhere(token)
-        app = api.json(f"/webapps/{DOMAIN}/")
+        try:
+            app = api.json(f"/webapps/{DOMAIN}/")
+        except DeployError as error:
+            if error.status not in {502, 503, 504}:
+                raise
+            apps = api.json("/webapps/")
+            matches = [item for item in apps if isinstance(item, dict) and item.get("domain_name") == DOMAIN] if isinstance(apps, list) else []
+            if len(matches) != 1:
+                raise DeployError("Existing Web app metadata is unavailable; nothing changed.") from None
+            app = matches[0]
         console = api.json(f"/consoles/{args.console}/")
         if not isinstance(console, dict) or str(console.get("id")) != str(args.console):
             raise DeployError("The specified console was not found in this account.")
+        if args.probe:
+            print("Web app metadata fields: " + ", ".join(sorted(app.keys())))
         python, wsgi = runtime_paths(app)
         if args.probe:
             print("PythonAnywhere authentication OK; existing Web app and supplied console accessible. No files changed.")
-            print("Web app metadata fields: " + ", ".join(sorted(app.keys())))
             return 0
         if not args.commit or len(args.commit) != 40 or any(c not in "0123456789abcdef" for c in args.commit):
             raise DeployError("A tested full commit SHA is required.")
