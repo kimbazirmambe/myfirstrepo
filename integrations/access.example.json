@@ -1,0 +1,16 @@
+{
+  "description": "Только метаданные; никаких значений секретов.",
+  "connections": [
+    {
+      "name": "example-service",
+      "runtime": "windows-local",
+      "transport": "app-or-mcp",
+      "endpoint": "https://service.example.com/mcp",
+      "purpose": "Заполните назначение подключения",
+      "operations": ["read"],
+      "credential_source": "OAuth или защищённое хранилище",
+      "status": "not-configured",
+      "revoke": "Удалите подключение в Codex и отзовите разрешение в сервисе"
+    }
+  ]
+}

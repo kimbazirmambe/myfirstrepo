@@ -1,0 +1,12 @@
+# Example only; not automatically loaded. Copy a needed section to your
+# personal Codex configuration after editing. Never put tokens here.
+[mcp_servers.remote_example]
+enabled = false
+url = "https://service.example.com/mcp"
+bearer_token_env_var = "SERVICE_API_TOKEN"
+
+[mcp_servers.local_example]
+enabled = false
+command = "python"
+# Replace with an absolute Windows path. Literal strings preserve backslashes.
+args = ['C:\path\to\myfirstrepo\scripts\repo_mcp.py']

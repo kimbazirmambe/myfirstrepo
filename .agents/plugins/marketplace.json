@@ -1,0 +1,6 @@
+{
+  "name": "myfirstrepo-local",
+  "plugins": [
+    {"name": "workspace-helper", "source": "./plugins/workspace-helper"}
+  ]
+}

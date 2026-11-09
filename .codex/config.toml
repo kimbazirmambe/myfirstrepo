@@ -1,0 +1,16 @@
+# Personal accounts and credentials belong outside Git.
+# Managed sessions can override these defaults.
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[agents.explorer]
+description = "Исследует код и зависимости; возвращает выводы с путями."
+config_file = "agents/explorer.toml"
+
+[agents.developer]
+description = "Реализует задачу и проверяет изменение."
+config_file = "agents/developer.toml"
+
+[agents.reviewer]
+description = "Проверяет ошибки, регрессии и доступы без редактирования файлов."
+config_file = "agents/reviewer.toml"

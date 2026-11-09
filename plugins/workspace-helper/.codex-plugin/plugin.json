@@ -1,0 +1,6 @@
+{
+  "name": "workspace-helper",
+  "version": "0.1.0",
+  "description": "Помощь в освоении структуры рабочего репозитория.",
+  "skills": "./skills"
+}
