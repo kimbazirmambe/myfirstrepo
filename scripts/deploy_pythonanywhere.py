@@ -51,7 +51,13 @@ class PythonAnywhere:
                 # Retry only safe reads. Never duplicate a console command on an ambiguous failure.
                 if method == "GET" and error.code in {429, 502, 503, 504} and attempt < 2:
                     print(f"Temporary hosting API HTTP {error.code}; retrying read {attempt + 1}/2.")
-                    time.sleep(5 * (attempt + 1))
+                    delay = 5 * (attempt + 1)
+                    if error.code == 429:
+                        retry_after = error.headers.get("Retry-After", "")
+                        if not retry_after.isdigit() or int(retry_after) > 30:
+                            raise DeployError("Hosting API rate limit; stop and wait before another attempt.", 429) from None
+                        delay = max(delay, int(retry_after))
+                    time.sleep(delay)
                     continue
                 raise DeployError(f"PythonAnywhere HTTP {error.code}; endpoint {path.split('/')[1]}. No credential values logged.", error.code) from None
             except OSError:
