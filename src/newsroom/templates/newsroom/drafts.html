@@ -1,0 +1,8 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Подготовка публикаций{% endblock %}
+{% block content %}
+<section class="page-heading"><p class="eyebrow">РЕДАКТОРСКАЯ</p><h1>Подготовка публикаций</h1><p class="intro">Собственные тексты для соцсетей, мессенджеров и email. Отправка в каналы не подключена.</p></section>
+<div class="toolbar"><a class="button button-primary compact" href="{% url 'newsroom:articles' %}">Выбрать статью для материала</a></div>
+{% for draft in page %}<article class="source-item"><div class="source-item-heading"><h2><a href="{% url 'newsroom:draft' draft.pk %}">{{ draft.subject|default:draft.article.title }}</a></h2><span class="badge">{{ draft.get_status_display }}</span></div><p class="help-text">{{ draft.get_channel_display }} · Версия {{ draft.version }} · {{ draft.updated_at|date:"d.m.Y H:i" }} UTC</p><p class="excerpt">{{ draft.body|truncatechars:180 }}</p></article>{% empty %}<div class="empty-state"><div><h2>Начните с выбранной статьи</h2><p>Откройте статью и нажмите «Подготовить материал».</p></div></div>{% endfor %}
+{% include "newsroom/pagination.html" %}
+{% endblock %}

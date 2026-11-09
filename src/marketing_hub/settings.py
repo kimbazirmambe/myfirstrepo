@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "dashboard",
     "sources",
+    "newsroom",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
