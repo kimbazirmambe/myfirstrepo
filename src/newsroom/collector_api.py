@@ -40,7 +40,7 @@ def queue(request):
     ).order_by("last_checked_at", "pk")[:5]
     return JsonResponse({"sources": [
         {"id": source.pk, "url": source.rss_url,
-         "known_urls": list(source.article_set.filter(auto_prepared=True).order_by("-discovered_at").values_list("url", flat=True)[:100])}
+         "known_urls": list(dict.fromkeys(source.seen_urls + list(source.article_set.filter(auto_prepared=True).order_by("-discovered_at").values_list("url", flat=True)[:50])))[:50]}
         for source in sources
     ]})
 

@@ -42,9 +42,13 @@ def source_delete(request, pk):
 @require_http_methods(["GET", "POST"])
 def source_edit(request, pk):
     source = get_object_or_404(NewsSource, pk=pk)
+    previous_rules = (source.rss_url, source.keywords, source.exclude_keywords)
     form = NewsSourceForm(request.POST if request.method == "POST" else None, instance=source)
     if request.method == "POST" and form.is_valid():
         source = form.save(commit=False)
+        if (source.rss_url, source.keywords, source.exclude_keywords) != previous_rules:
+            source.seen_urls = []
+            source.last_filtered_count = 0
         source.collection_requested = True
         source.collection_error = ""
         source.save()

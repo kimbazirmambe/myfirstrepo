@@ -14,6 +14,8 @@ class NewsSource(models.Model):
     last_checked_at = models.DateTimeField(null=True, blank=True)
     collection_requested = models.BooleanField(default=True)
     collection_error = models.CharField(max_length=500, blank=True)
+    seen_urls = models.JSONField(default=list, blank=True)
+    last_filtered_count = models.PositiveIntegerField(default=0)
     last_added_count = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField("Дата добавления", auto_now_add=True)
 
