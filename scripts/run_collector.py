@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 import sys
 from urllib.error import HTTPError
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, build_opener
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -25,6 +25,13 @@ def hub_call(base, token, path, payload=None):
         raise RuntimeError("Marketing Hub unavailable or returned an invalid response") from None
 
 
+def canonical_url(url):
+    parts = urlsplit(url)
+    query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True)
+             if not k.lower().startswith("utm_") and k.lower() not in {"fbclid", "gclid"}]
+    return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), parts.path or "/", urlencode(query), ""))
+
+
 def main():
     base = os.environ.get("HUB_BASE_URL", "").rstrip("/")
     token = os.environ.get("COLLECTOR_TOKEN", "")
@@ -38,6 +45,8 @@ def main():
             payload = {"source_id": source["id"], "source_url": source["url"], "articles": []}
             try:
                 rows = collect_source(source["url"], known_urls=source.get("known_urls", []))
+                for row in rows:
+                    row["url"] = canonical_url(row["url"])
                 rows = [row for row in rows if row["url"] not in source.get("known_urls", [])][:3]
                 for row in rows:
                     try:
