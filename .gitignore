@@ -15,3 +15,7 @@ dist/
 build/
 .DS_Store
 Thumbs.db
+
+# Local Django database
+src/db.sqlite3
+src/db.sqlite3-*

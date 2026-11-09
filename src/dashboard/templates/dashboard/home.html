@@ -1,0 +1,44 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Главная · Marketing Hub</title>
+  <link rel="stylesheet" href="{% static 'dashboard/style.css' %}">
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="{% url 'home' %}"><span class="brand-icon" aria-hidden="true">M</span> Marketing Hub</a>
+    <p class="nav-label">РАБОЧЕЕ ПРОСТРАНСТВО</p>
+    <nav aria-label="Основное меню">
+      <a class="nav-item active" href="{% url 'home' %}" aria-current="page">Главная</a>
+      <span class="nav-item" aria-disabled="true">Источники новостей</span>
+      <span class="nav-item" aria-disabled="true">Найденные статьи</span>
+      <span class="nav-item" aria-disabled="true">Подготовка публикаций</span>
+      <span class="nav-item" aria-disabled="true">История публикаций</span>
+      <span class="nav-item" aria-disabled="true">Настройки</span>
+    </nav>
+    <p class="sidebar-note">Разделы меню появятся<br>на следующих этапах.</p>
+  </aside>
+  <main id="main">
+    <header class="topbar"><span>Обзор рабочего пространства</span><span class="badge">Первый этап</span></header>
+    <section class="welcome" aria-labelledby="welcome-title">
+      <p class="eyebrow">IPM · SALES / MARKETING HUB</p>
+      <h1 id="welcome-title">Ваше пространство<br>для работы с контентом</h1>
+      <p class="intro">От интересной новости до готовой публикации.<br>Здесь будет собрана работа с источниками, статьями и материалами для ваших каналов.</p>
+      <div class="status"><span class="status-dot" aria-hidden="true"></span>Основа приложения готова</div>
+    </section>
+    <section aria-labelledby="workflow-title">
+      <div class="section-heading"><h2 id="workflow-title">Будущий рабочий процесс</h2><span>Три понятных шага</span></div>
+      <div class="cards">
+        <article class="card"><span class="step">01</span><h3>Находите важное</h3><p>Источники новостей и найденные статьи в одном месте.</p><span class="soon">Планируется</span></article>
+        <article class="card"><span class="step">02</span><h3>Готовьте материалы</h3><p>Черновики для социальных сетей, мессенджеров и email.</p><span class="soon">Планируется</span></article>
+        <article class="card"><span class="step">03</span><h3>Проверяйте и утверждайте</h3><p>Редактирование и согласование перед каждой публикацией.</p><span class="soon">Планируется</span></article>
+      </div>
+    </section>
+    <section class="empty-state" aria-labelledby="empty-title"><div class="empty-icon" aria-hidden="true">＋</div><div><h2 id="empty-title">Начинаем с чистого листа</h2><p>Источников, статей и публикаций пока нет. На этом этапе доступна только главная страница.</p></div></section>
+    <footer>Marketing Hub <span>Рабочее пространство для маркетинга и продаж</span></footer>
+  </main>
+</body>
+</html>
