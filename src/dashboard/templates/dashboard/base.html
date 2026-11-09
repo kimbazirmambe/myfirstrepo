@@ -1,0 +1,31 @@
+{% load static %}
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Главная{% endblock %} · Marketing Hub</title>
+  <link rel="stylesheet" href="{% static 'dashboard/style.css' %}">
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="{% url 'home' %}"><span class="brand-icon" aria-hidden="true">M</span> Marketing Hub</a>
+    <p class="nav-label">РАБОЧЕЕ ПРОСТРАНСТВО</p>
+    <nav aria-label="Основное меню">
+      <a class="nav-item{% if request.resolver_match.url_name == 'home' %} active{% endif %}" href="{% url 'home' %}"{% if request.resolver_match.url_name == 'home' %} aria-current="page"{% endif %}>Главная</a>
+      <a class="nav-item{% if request.resolver_match.namespace == 'sources' %} active{% endif %}" href="{% url 'sources:list' %}"{% if request.resolver_match.namespace == 'sources' %} aria-current="page"{% endif %}>Источники новостей</a>
+      <span class="nav-item" aria-disabled="true">Найденные статьи</span>
+      <span class="nav-item" aria-disabled="true">Подготовка публикаций</span>
+      <span class="nav-item" aria-disabled="true">История публикаций</span>
+      <span class="nav-item" aria-disabled="true">Настройки</span>
+    </nav>
+    <p class="sidebar-note">Остальные разделы появятся<br>на следующих этапах.</p>
+  </aside>
+  <main id="main">
+    <header class="topbar"><span>{% block section_name %}Обзор рабочего пространства{% endblock %}</span><span class="badge">Marketing Hub</span></header>
+    {% if messages %}<div class="notifications" role="status">{% for message in messages %}<p class="notification">{{ message }}</p>{% endfor %}</div>{% endif %}
+{% block content %}{% endblock %}
+    <footer>Marketing Hub <span>Рабочее пространство для маркетинга и продаж</span></footer>
+  </main>
+</body>
+</html>

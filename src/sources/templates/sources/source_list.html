@@ -1,0 +1,39 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Источники новостей{% endblock %}
+{% block section_name %}Источники новостей{% endblock %}
+{% block content %}
+<section class="page-heading" aria-labelledby="sources-title">
+  <p class="eyebrow">ВАША БИБЛИОТЕКА ИСТОЧНИКОВ</p>
+  <h1 id="sources-title">Источники новостей</h1>
+  <p class="intro">Сохраните RSS-ленты, с которыми хотите работать. Автоматический сбор новостей пока не выполняется.</p>
+</section>
+<div class="sources-layout">
+  <section class="sources-list" aria-labelledby="list-title">
+    <div class="section-heading"><h2 id="list-title">Добавленные источники</h2><span>Всего: {{ sources|length }}</span></div>
+    {% for source in sources %}
+    <article class="source-item">
+      <div class="source-item-heading"><h3>{{ source.name }}</h3><span class="source-status{% if not source.is_active %} inactive{% endif %}">{% if source.is_active %}Активен{% else %}Неактивен{% endif %}</span></div>
+      <p class="source-url">{{ source.rss_url }}</p>
+      <div class="source-item-footer"><span>Добавлен {{ source.created_at|date:"d.m.Y H:i" }} UTC</span><a class="delete-link" href="{% url 'sources:delete' source.pk %}" aria-label="Удалить источник {{ source.name }}">Удалить</a></div>
+    </article>
+    {% empty %}
+    <div class="empty-state sources-empty"><div class="empty-icon" aria-hidden="true">＋</div><div><h3>Пока нет источников</h3><p>Добавьте первый RSS-источник с помощью формы.</p></div></div>
+    {% endfor %}
+  </section>
+  <section class="form-panel" aria-labelledby="add-title">
+    <h2 id="add-title">Добавить источник</h2>
+    <form method="post" action="{% url 'sources:list' %}">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      {% for field in form %}
+      <div class="form-field{% if field.name == 'is_active' %} checkbox-field{% endif %}">
+        {% if field.name == 'is_active' %}{{ field }} {{ field.label_tag }}{% else %}{{ field.label_tag }}{{ field }}{% endif %}
+        {% if field.help_text %}<p class="help-text" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</p>{% endif %}
+        {{ field.errors }}
+      </div>
+      {% endfor %}
+      <button class="button button-primary" type="submit">Добавить источник</button>
+    </form>
+  </section>
+</div>
+{% endblock %}
