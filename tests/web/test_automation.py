@@ -138,3 +138,33 @@ class AutomationTests(TestCase):
         response = self.send()
         self.assertEqual(response.json()['drafts'], 3)
         self.assertEqual(Article.objects.count(), 1)
+
+    def test_filtered_urls_are_remembered_so_collection_can_progress(self):
+        self.source.keywords = 'farm'
+        self.source.save()
+        self.assertEqual(self.send().json()['filtered'], 1)
+        self.source.refresh_from_db()
+        self.assertEqual(self.source.seen_urls, [self.article['url']])
+        self.assertEqual(self.source.last_filtered_count, 1)
+        self.source.collection_requested = True
+        self.source.save()
+        queue = self.client.get('/collector/queue/', **self.headers).json()['sources']
+        self.assertIn(self.article['url'], queue[0]['known_urls'])
+        self.assertFalse(Article.objects.exists())
+
+    def test_changing_keywords_reconsiders_previously_filtered_urls(self):
+        self.source.keywords = 'farm'
+        self.source.save()
+        self.send()
+        user = get_user_model().objects.create_user(username='filter-editor', is_staff=True)
+        client = Client()
+        client.force_login(user)
+        response = client.post(reverse('sources:edit', args=[self.source.pk]), {
+            'name': self.source.name, 'rss_url': self.source.rss_url, 'is_active': 'on',
+            'keywords': 'verified', 'exclude_keywords': '',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.source.refresh_from_db()
+        self.assertEqual(self.source.seen_urls, [])
+        self.assertEqual(self.source.last_filtered_count, 0)
+        self.assertEqual(self.send().json()['drafts'], 3)

@@ -38,6 +38,7 @@ def automatic_drafts(article, generated=None):
 
 @transaction.atomic
 def ingest(source, rows, error=""):
+    seen = []
     counts = {"added": 0, "duplicates": 0, "filtered": 0, "drafts": 0, "writing_errors": 0}
     if not error:
         include = [w.strip().casefold() for w in source.keywords.split(",") if w.strip()]
@@ -49,6 +50,7 @@ def ingest(source, rows, error=""):
             text = (title + " " + body).casefold()
             if (include and not any(w in text for w in include)) or any(w in text for w in exclude):
                 counts["filtered"] += 1
+                seen.append(url)
                 continue
             article, created = Article.objects.get_or_create(url=url, defaults={
                 "source": source, "title": title, "body": body,
@@ -58,10 +60,13 @@ def ingest(source, rows, error=""):
             if row.get("writing_error"):
                 counts["writing_errors"] += 1
             else:
+                seen.append(url)
                 counts["drafts"] += automatic_drafts(article, row.get("drafts"))
     source.last_checked_at = timezone.now()
     source.collection_requested = False
     source.collection_error = error[:500] if error else ("Статьи найдены, но ИИ не подготовил черновики. Проверьте подключение провайдера и запросите повторную проверку." if counts["writing_errors"] else "")
     source.last_added_count = counts["added"]
-    source.save(update_fields=["last_checked_at", "collection_requested", "collection_error", "last_added_count"])
+    source.last_filtered_count = counts["filtered"]
+    source.seen_urls = list(dict.fromkeys(seen + source.seen_urls))[:200]
+    source.save(update_fields=["last_checked_at", "collection_requested", "collection_error", "last_added_count", "last_filtered_count", "seen_urls"])
     return counts
