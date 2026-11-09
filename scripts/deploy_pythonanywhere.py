@@ -1,6 +1,5 @@
 """Deploy via protected Actions secret and an explicitly supplied idle console."""
 import argparse
-import hashlib
 import json
 import os
 from pathlib import Path
@@ -11,6 +10,8 @@ from urllib.error import HTTPError
 from urllib.parse import quote, urlencode
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 import uuid
+
+from actions_credentials import collector_key
 
 ACCOUNT = "kimbazirmambe"
 DOMAIN = ACCOUNT + ".pythonanywhere.com"
@@ -145,7 +146,7 @@ def main():
         spec_path = directory + "/spec.json"
         result_path = directory + "/result.json"
         spec = {"commit": args.commit, "domain": DOMAIN, "python_path": python, "wsgi_path": wsgi,
-                "api_token_fingerprint": hashlib.sha256(token.encode()).hexdigest(), "job_id": job_id, "result_path": result_path}
+                "collector_token": collector_key(token), "job_id": job_id, "result_path": result_path}
         api.upload(script, (ROOT / "scripts/pa_remote_deploy.py").read_bytes())
         api.upload(spec_path, json.dumps(spec).encode())
         api.send(args.console, "(" + " ".join(shlex.quote(s) for s in (python, script, spec_path)) + " >/dev/null 2>&1)")

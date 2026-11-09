@@ -60,15 +60,15 @@ class HostingActionsTests(unittest.TestCase):
         with self.assertRaises(DeployError):
             runtime_paths({})
 
-    def test_remote_stops_on_console_token_mismatch(self):
+    def test_remote_stops_on_invalid_collector_credential(self):
         with tempfile.TemporaryDirectory() as directory:
             result = Path(directory) / 'result.json'
             key = secrets.token_urlsafe(32)
             with patch.dict(os.environ, {'API_TOKEN': key}), patch.object(Path, 'home', return_value=Path(directory)):
-                self.assertEqual(deploy({'result_path': str(result), 'api_token_fingerprint': 'wrong'}), 1)
+                self.assertEqual(deploy({'result_path': str(result), 'collector_token': 'wrong'}), 1)
             data = result.read_text()
             self.assertNotIn(key, data)
-            self.assertEqual(json.loads(data)['error'], 'console_token_unavailable')
+            self.assertEqual(json.loads(data)['error'], 'collector_credential_invalid')
 
     def test_full_remote_preparation_preserves_database_and_django_key(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -99,7 +99,7 @@ class HostingActionsTests(unittest.TestCase):
             commit = 'a' * 40
             result_path = home / 'job/result.json'
             spec = {'result_path': str(result_path), 'python_path': sys.executable, 'wsgi_path': str(wsgi),
-                    'api_token_fingerprint': hashlib.sha256(key.encode()).hexdigest(),
+                    'collector_token': collector_key(key),
                     'domain': 'kimbazirmambe.pythonanywhere.com', 'job_id': 'test', 'commit': commit}
             real_run = subprocess.run
             def run(command, **kwargs):
@@ -113,7 +113,7 @@ class HostingActionsTests(unittest.TestCase):
                 if '-m' in command and 'pip' in command:
                     return subprocess.CompletedProcess(command, 0)
                 return real_run(command, **kwargs)
-            with patch.dict(os.environ, {**clean_env, 'API_TOKEN': key}, clear=True), patch.object(Path, 'home', return_value=home), patch('pa_remote_deploy.subprocess.run', side_effect=run):
+            with patch.dict(os.environ, clean_env, clear=True), patch.object(Path, 'home', return_value=home), patch('pa_remote_deploy.subprocess.run', side_effect=run):
                 self.assertEqual(deploy(spec), 0)
             result = json.loads(result_path.read_text())
             self.assertEqual(result['state'], 'prepared')
