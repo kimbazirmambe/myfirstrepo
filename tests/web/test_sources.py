@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
 
@@ -6,7 +7,12 @@ from sources.models import NewsSource
 
 
 class NewsSourceTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.staff = get_user_model().objects.create_user(username="staff", is_staff=True)
+
     def setUp(self):
+        self.client.force_login(self.staff)
         self.list_url = reverse("sources:list")
         self.valid_data = {
             "name": "Учебная лента",
@@ -98,6 +104,7 @@ class NewsSourceTests(TestCase):
 
     def test_csrf_protects_add_and_delete(self):
         client = Client(enforce_csrf_checks=True)
+        client.force_login(self.staff)
         self.assertEqual(client.post(self.list_url, self.valid_data).status_code, 403)
         self.assertFalse(NewsSource.objects.exists())
         client.get(self.list_url)

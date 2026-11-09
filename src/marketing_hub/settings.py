@@ -31,6 +31,7 @@ else:
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 3600
 INSTALLED_APPS = [
+    "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
