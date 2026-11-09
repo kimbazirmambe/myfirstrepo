@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import time
 from urllib.error import HTTPError
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, build_opener
@@ -16,13 +17,17 @@ def hub_call(base, token, path, payload=None):
     # Never follow redirects while carrying the machine credential.
     data = json.dumps(payload).encode() if payload is not None else None
     req = Request(base + path, data=data, headers={"Authorization": "Bearer " + token, "Content-Type": "application/json"})
-    try:
-        with build_opener(NoRedirect).open(req, timeout=30) as response:
-            return json.loads(response.read(1024 * 1024))
-    except HTTPError as error:
-        raise RuntimeError(f"Marketing Hub HTTP {error.code}; check deployment and collector settings") from None
-    except (OSError, ValueError):
-        raise RuntimeError("Marketing Hub unavailable or returned an invalid response") from None
+    for attempt in range(7):
+        try:
+            with build_opener(NoRedirect).open(req, timeout=30) as response:
+                return json.loads(response.read(1024 * 1024))
+        except HTTPError as error:
+            if payload is None and error.code in {404, 502, 503, 504} and attempt < 6:
+                time.sleep(5)
+                continue
+            raise RuntimeError(f"Marketing Hub HTTP {error.code}; check deployment and collector settings") from None
+        except (OSError, ValueError):
+            raise RuntimeError("Marketing Hub unavailable or returned an invalid response") from None
 
 
 def canonical_url(url):
@@ -32,7 +37,7 @@ def canonical_url(url):
     return urlunsplit((parts.scheme.lower(), parts.netloc.lower(), parts.path or "/", urlencode(query), ""))
 
 
-def main():
+def main(check_only=False):
     base = os.environ.get("HUB_BASE_URL", "").rstrip("/")
     token = os.environ.get("COLLECTOR_TOKEN", "")
     parts = urlsplit(base)
@@ -41,6 +46,9 @@ def main():
         return 1
     try:
         sources = hub_call(base, token, "/collector/queue/")["sources"]
+        if check_only:
+            print(f"Published collector endpoint ready; eligible sources: {len(sources)}")
+            return 0
         for source in sources:
             payload = {"source_id": source["id"], "source_url": source["url"], "articles": []}
             try:
@@ -62,7 +70,9 @@ def main():
             except Exception:
                 payload["error"] = "Не удалось разобрать источник; нужен отдельный обработчик."
             result = hub_call(base, token, "/collector/results/", payload)
-            print(f"Source {source['id']}: added={result['added']}, drafts={result['drafts']}, error={bool(payload.get('error'))}")
+            print(f"Source {source['id']}: added={result['added']}, drafts={result['drafts']}, duplicates={result.get('duplicates', 0)}, filtered={result.get('filtered', 0)}, error={bool(payload.get('error'))}")
+            if payload.get("error"):
+                print("Collection diagnostic: " + payload["error"])
     except (RuntimeError, KeyError, TypeError):
         print("Collector failed. Check the Hub URL, deployment and matching machine secret. Secret values are never printed.", file=sys.stderr)
         return 1
@@ -70,4 +80,4 @@ def main():
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(check_only="--check" in sys.argv[1:]))

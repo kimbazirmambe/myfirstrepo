@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   collect:
-    if: vars.COLLECTOR_ENABLED == 'true'
+    if: vars.COLLECTOR_ENABLED != 'false'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -19,11 +19,17 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install -r requirements.txt
+      - name: Configure collector credential
+        id: credentials
+        run: python scripts/actions_credentials.py
+        env:
+          PA_API_TOKEN: ${{ secrets.PA_API_TOKEN }}
+          COLLECTOR_TOKEN: ${{ secrets.COLLECTOR_TOKEN }}
       - run: python scripts/run_collector.py
+        if: steps.credentials.outputs.enabled == 'true'
         env:
           PYTHONUTF8: '1'
-          HUB_BASE_URL: ${{ vars.HUB_BASE_URL }}
-          COLLECTOR_TOKEN: ${{ secrets.COLLECTOR_TOKEN }}
+          HUB_BASE_URL: ${{ vars.HUB_BASE_URL || 'https://kimbazirmambe.pythonanywhere.com' }}
           AI_ENABLED: ${{ vars.AI_ENABLED }}
           AI_MODEL: ${{ vars.AI_MODEL }}
           MARKETING_AI_KEY: ${{ secrets.MARKETING_AI_KEY }}
