@@ -12,7 +12,7 @@ def collector_key(api_token):
 
 
 def main():
-    parent = os.environ.get("PA_API_TOKEN", "")
+    parent = os.environ.get("PA_API_TOKEN", "").strip()
     token = collector_key(parent) if parent else os.environ.get("COLLECTOR_TOKEN", "")
     enabled = len(token) >= 32
     output_path = os.environ.get("GITHUB_OUTPUT")

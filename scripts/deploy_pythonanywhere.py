@@ -31,6 +31,9 @@ class NoRedirect(HTTPRedirectHandler):
 
 class PythonAnywhere:
     def __init__(self, token):
+        token = token.strip()
+        if not token or any(character.isspace() or ord(character) < 33 or ord(character) > 126 for character in token):
+            raise DeployError("Hosting secret has invalid format; supply the raw API token, without the Token prefix or line breaks.")
         self.token = token
         self.opener = build_opener(NoRedirect)
 
@@ -53,6 +56,8 @@ class PythonAnywhere:
                 raise DeployError(f"PythonAnywhere HTTP {error.code}; endpoint {path.split('/')[1]}. No credential values logged.", error.code) from None
             except OSError:
                 raise DeployError("PythonAnywhere connection failed or timed out.") from None
+            except ValueError:
+                raise DeployError("Invalid HTTP request configuration; credential values suppressed.") from None
 
     def json(self, path):
         try:
@@ -100,7 +105,7 @@ def main():
     parser.add_argument("--probe", action="store_true")
     parser.add_argument("--commit")
     args = parser.parse_args()
-    token = os.environ.get("PA_API_TOKEN", "")
+    token = os.environ.get("PA_API_TOKEN", "").strip()
     if not token:
         print("GitHub Actions secret PA_API_TOKEN is missing. Add it in this repository, not in the chat.", file=sys.stderr)
         return 1

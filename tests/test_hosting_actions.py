@@ -143,3 +143,9 @@ class HostingActionsTests(unittest.TestCase):
             with self.assertRaises(DeployError):
                 api.request('/consoles/1/send_input/', method='POST', data=b'x')
             self.assertEqual(request.call_count, 1)
+
+    def test_invalid_header_secret_is_rejected_without_echo(self):
+        value = 'Token ' + secrets.token_urlsafe(32)
+        with self.assertRaises(DeployError) as error:
+            PythonAnywhere(value)
+        self.assertNotIn(value, str(error.exception))
