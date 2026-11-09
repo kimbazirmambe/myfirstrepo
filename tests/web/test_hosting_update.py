@@ -27,9 +27,15 @@ class HostingUpdateTests(SimpleTestCase):
             env = {k: v for k, v in os.environ.items() if not k.startswith("DJANGO_")}
             subprocess.run(command, env=env, capture_output=True, check=True, timeout=30)
             database = root / "src/db.sqlite3"
-            with closing(sqlite3.connect(database)) as db:
-                db.execute("INSERT INTO sources_newssource (name,rss_url,is_active,created_at) VALUES ('Keep','https://example.com/feed',1,'2026-11-09')")
-                db.commit()
+            insert = (
+                "import os,json,sys; from pathlib import Path; "
+                f"os.environ.update(json.loads(Path({str(config)!r}).read_text())); "
+                "os.environ['DJANGO_SETTINGS_MODULE']='marketing_hub.settings'; "
+                f"sys.path.insert(0,{str(root / 'src')!r}); "
+                "import django; django.setup(); from sources.models import NewsSource; "
+                "NewsSource.objects.create(name='Keep',rss_url='https://example.com/feed')"
+            )
+            subprocess.run([sys.executable, "-c", insert], env=env, capture_output=True, check=True, timeout=10)
             subprocess.run(command, env=env, capture_output=True, check=True, timeout=30)
             backups = list((root / ".local/backups").glob("*.sqlite3"))
             self.assertEqual(len(backups), 1)

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.paginator import Paginator
@@ -19,6 +20,9 @@ def page(request, queryset):
 @staff_member_required
 def article_list(request):
     articles = Article.objects.select_related("source")
+    source_id = request.GET.get("source", "")
+    if source_id.isdigit():
+        articles = articles.filter(source_id=source_id)
     query = request.GET.get("q", "").strip()[:200]
     state = request.GET.get("state", "")
     if query:
@@ -26,7 +30,7 @@ def article_list(request):
     if state in Article.State.values:
         articles = articles.filter(state=state)
     return render(request, "newsroom/articles.html", {
-        "page": page(request, articles), "query": query, "state": state, "states": Article.State.choices,
+        "page": page(request, articles), "source_id": source_id, "query": query, "state": state, "states": Article.State.choices,
     })
 
 
@@ -96,7 +100,7 @@ def draft_create(request, pk):
         return redirect("newsroom:draft", pk=draft.pk)
     return render(request, "newsroom/form.html", {
         "form": form, "title": "Новый материал", "button": "Сохранить черновик", "article": article,
-        "note": "Напишите собственный текст на основе проверенных фактов. ИИ-провайдер пока не подключён: этот редактор не выполняет автоматическую генерацию.",
+        "note": "Здесь можно написать собственный текст на основе проверенных фактов. Автоматические материалы создаёт подключённый сборщик; эта форма предназначена для ручной работы.",
     })
 
 
@@ -165,4 +169,4 @@ def history(request):
 
 @staff_member_required
 def settings_page(request):
-    return render(request, "newsroom/settings.html")
+    return render(request, "newsroom/settings.html", {"collector_configured": len(settings.COLLECTOR_TOKEN) >= 32})
