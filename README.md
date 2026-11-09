@@ -1,8 +1,62 @@
 # myfirstrepo — рабочая среда Codex
 
-Основа для разработки с Codex на Windows и в облаке. Прикладной стек пока не выбран; служебным инструментам нужны только Python 3.11+ и Git.
+Marketing Hub — основа веб-сервиса для маркетинга и продаж на Python 3.12, Django 5.2 LTS и SQLite. Сейчас реализована только главная страница. Существующие инструменты Codex сохранены.
 
-## Начало на Windows
+
+## Запуск Marketing Hub
+
+Нужны Python 3.12 и Git. Команды выполняйте из корня репозитория.
+
+### Windows (PowerShell)
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe src/manage.py migrate
+.\.venv\Scripts\python.exe src/manage.py runserver
+```
+
+### Linux / macOS
+
+```sh
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python src/manage.py migrate
+.venv/bin/python src/manage.py runserver
+```
+
+Откройте в браузере **http://127.0.0.1:8000/** на том же компьютере, где запущен сервер. Для остановки нажмите Ctrl+C. При последующих запусках достаточно последней команды. Повторно устанавливайте зависимости, если изменился requirements.txt; выполняйте migrate после добавления миграций.
+
+Если запускаете приложение в Codex Cloud, адрес 127.0.0.1 относится к облачной машине, а не к вашему компьютеру. Для просмотра на своём компьютере запустите проект локально по инструкции выше. Возможность предпросмотра в облаке зависит от клиента.
+
+SQLite хранит локальные данные в `src/db.sqlite3` (исключён из Git); `migrate` создаёт служебные таблицы Django. Учебные и реальные данные не добавляются. Настройки предназначены только для локальной разработки: DEBUG включён, разрешены локальные адреса, временный секретный ключ меняется при перезапуске. Перед публикацией в интернете понадобится отдельная настройка безопасности.
+
+Меню содержит будущие разделы, но доступна только «Главная». Сбора новостей, генерации, входа пользователей и отправок пока нет. Страница использует локальные стили без CDN, API и внешних шрифтов.
+
+### Проверки
+
+Для Linux / macOS (на Windows замените `.venv/bin/python` на `.\.venv\Scripts\python.exe`):
+
+```sh
+.venv/bin/python src/manage.py check
+.venv/bin/python src/manage.py test tests/web -v 2
+.venv/bin/python scripts/workspace.py check
+.venv/bin/python -m unittest discover -s tests -v
+```
+
+Тесты веб-приложения запускаются отдельно через Django: `tests/web` намеренно не является Python-пакетом, чтобы существующий unittest-запуск служебных тестов не требовал инициализации Django. Веб-тест проверяет ответ главной страницы, шаблон и все пункты меню. GitHub Actions выполняет обе группы проверок на Python 3.12 в Linux и Windows.
+
+### Файлы приложения
+
+- `src/manage.py` — команды запуска, проверок и создания таблиц.
+- `src/marketing_hub/` — настройки Django, SQLite, маршруты и точки запуска сервера.
+- `src/dashboard/views.py` — обработка запроса главной страницы.
+- `src/dashboard/templates/dashboard/home.html` — разметка главной страницы.
+- `src/dashboard/static/dashboard/style.css` — оформление и адаптация для узкого экрана.
+- `tests/web/test_home.py` — тест главной страницы.
+- `requirements.txt` — закреплённые версии зависимостей.
+
+## Инструменты Codex: начало на Windows
 
 Установите Git, Python 3.11+ и Codex по [официальной инструкции](https://developers.openai.com/codex/windows). Откройте PowerShell:
 
@@ -27,7 +81,7 @@ codex
 | `plugins/` | Исходники плагинов |
 | `integrations/` | Примеры MCP и реестр доступов |
 | `scripts/` | Проверка проекта, генераторы, локальный MCP-сервер |
-| `src/`, `tests/` | Будущий код и проверки |
+| `src/`, `tests/` | Веб-приложение и проверки |
 | `docs/` | Инструкции по расширению и доступам |
 | `.local/` | Игнорируемые локальные данные |
 
