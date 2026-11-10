@@ -1,10 +1,12 @@
 from django.contrib import admin
 from django.urls import include, path
 from dashboard.views import home
-from newsroom import collector_api
+from newsroom import collector_api, jobs
 
 urlpatterns = [
     path("", home, name="home"),
+    path("collector/jobs/", jobs.queue),
+    path("collector/job-results/", jobs.receive),
     path("collector/queue/", collector_api.queue),
     path("collector/results/", collector_api.receive),
     path("admin/", admin.site.urls),

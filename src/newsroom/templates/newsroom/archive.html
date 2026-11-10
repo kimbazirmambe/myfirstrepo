@@ -1,0 +1,16 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Поиск «{{ job.query }}»{% endblock %}
+{% block content %}
+<section class="page-heading"><p class="eyebrow">ПОИСК ПО АРХИВУ САЙТА</p><h1>«{{ job.query }}»</h1><p class="source-url">{{ job.source_url }}</p><p class="intro">{{ job.get_status_display }} · Найдено: {{ job.matched_count }} · Проверено: {{ job.cursor }} / {{ job.urls|length }} · Ошибок: {{ job.error_count }}</p></section>
+<p class="help-text">Проверяются общедоступные страницы из sitemap с учётом форм слов. Это не гарантия нахождения всех материалов в интернете. Закрытые страницы и ограничения сайтов не обходятся. Ход поиска обновляется автоматически; сборщик запускается примерно каждые 15 минут.</p>
+{% if job.limited %}<p class="message">Результат неполный: достигнут лимит объёма архива или текста.</p>{% endif %}
+{% if job.error %}<p class="message">Последняя ошибка: {{ job.error }}</p>{% endif %}
+{% if not job.source %}<p class="message">Источник удалён. Поиск больше не выполняется.</p>{% elif not job.source.is_active %}<p class="message">Источник неактивен. Поиск приостановлен.</p>{% endif %}
+{% if job.status == 'queued' or job.status == 'running' %}<form method="post">{% csrf_token %}<button class="button button-secondary">Остановить поиск</button></form>{% endif %}
+{% for article in page %}<article class="source-item"><h2><a href="{% url 'newsroom:article' article.pk %}">{{ article.title }}</a></h2><p class="source-url">{{ article.url }}</p><p class="help-text">Дата публикации: {{ article.published_at|date:"d.m.Y"|default:"неизвестна" }}</p><a class="button button-primary compact" href="{% url 'newsroom:generate' article.pk %}">Сгенерировать пост</a></article>{% empty %}<p class="help-text">Совпадений пока нет. При незавершённом поиске это ещё не окончательный результат.</p>{% endfor %}
+{% include "newsroom/pagination.html" %}
+<p><a href="{% url 'newsroom:articles' %}">Все статьи и поисковые задания</a></p>
+{% if job.status == 'queued' or job.status == 'running' %}
+<script>setInterval(() => { if (!document.hidden) location.reload(); }, 30000);</script>
+{% endif %}
+{% endblock %}

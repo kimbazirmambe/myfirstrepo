@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods, require_POST
 
 from .forms import ApprovalForm, ArticleForm, DraftForm, ImportForm
-from .models import Article, Draft, DraftRevision
+from .models import Article, Draft, DraftRevision, ArchiveSearch
 from .services import VersionConflict, import_articles, snapshot, update_draft
 
 
@@ -26,11 +26,11 @@ def article_list(request):
     query = request.GET.get("q", "").strip()[:200]
     state = request.GET.get("state", "")
     if query:
-        articles = articles.filter(Q(title__icontains=query) | Q(body__icontains=query))
+        articles = articles.filter(Q(title__icontains=query) | Q(body__icontains=query) | Q(content_text__icontains=query))
     if state in Article.State.values:
         articles = articles.filter(state=state)
     return render(request, "newsroom/articles.html", {
-        "page": page(request, articles), "source_id": source_id, "query": query, "state": state, "states": Article.State.choices,
+        "page": page(request, articles), "source_id": source_id, "query": query, "state": state, "states": Article.State.choices, "searches": ArchiveSearch.objects.all()[:10],
     })
 
 
@@ -170,3 +170,56 @@ def history(request):
 @staff_member_required
 def settings_page(request):
     return render(request, "newsroom/settings.html", {"collector_configured": len(settings.COLLECTOR_TOKEN) >= 32})
+
+
+@staff_member_required
+@require_http_methods(['GET', 'POST'])
+def archive_start(request):
+    from .forms import ArchiveSearchForm
+    from .models import ArchiveSearch
+    form = ArchiveSearchForm(request.POST if request.method == 'POST' else None, initial={'source': request.GET.get('source')})
+    if request.method == 'POST' and form.is_valid():
+        source = form.cleaned_data['source']
+        job = ArchiveSearch.objects.create(source=source, source_url=source.rss_url,
+                                          query=form.cleaned_data['query'], created_by=request.user)
+        return redirect('newsroom:archive', pk=job.pk)
+    return render(request, 'newsroom/form.html', {'form': form, 'title': 'Найти статьи на сайте',
+        'button': 'Начать поиск', 'note': 'Поиск проверяет общедоступные статьи из sitemap сайта. Запускается внешним сборщиком примерно раз в 15 минут; большой архив потребует нескольких запусков. Закрытые страницы не читаются. Посты создаются по вашей команде.'})
+
+
+@staff_member_required
+@require_http_methods(['GET', 'POST'])
+def archive_detail(request, pk):
+    from .models import ArchiveSearch
+    job = get_object_or_404(ArchiveSearch, pk=pk)
+    if request.method == 'POST':
+        ArchiveSearch.objects.filter(pk=pk, status__in=['queued', 'running']).update(status='cancelled')
+        return redirect('newsroom:archive', pk=pk)
+    return render(request, 'newsroom/archive.html', {'job': job, 'page': page(request, job.articles.all())})
+
+
+@staff_member_required
+@require_http_methods(['GET', 'POST'])
+def generate_post(request, pk):
+    from django.db import IntegrityError
+    from .forms import GeneratePostForm
+    from .models import GenerationRequest
+    article = get_object_or_404(Article, pk=pk)
+    form = GeneratePostForm(request.POST if request.method == 'POST' else None)
+    if request.method == 'POST' and form.is_valid():
+        try:
+            with transaction.atomic():
+                job = GenerationRequest.objects.create(article=article, channel=form.cleaned_data['channel'],
+                    editorial_name=form.cleaned_data['editorial_name'], created_by=request.user)
+        except IntegrityError:
+            job = GenerationRequest.objects.get(article=article, channel=form.cleaned_data['channel'], status__in=['queued', 'running'])
+        return redirect('newsroom:generation', pk=job.pk)
+    return render(request, 'newsroom/form.html', {'form': form, 'article': article, 'title': 'Сгенерировать пост',
+        'button': 'Заказать ИИ-черновик', 'note': 'Создаётся один самостоятельный материал выбранного формата с указанием источника. Нужен подключённый ключ Gemini из проекта без платного биллинга. При исчерпании бесплатной квоты запрос завершится сообщением об ошибке; платного переключения нет. Перед публикацией проверьте факты и права. Выполнение — при ближайшем запуске сборщика.'})
+
+
+@staff_member_required
+def generation_detail(request, pk):
+    from .models import GenerationRequest
+    job = get_object_or_404(GenerationRequest.objects.select_related('article', 'draft'), pk=pk)
+    return render(request, 'newsroom/generation.html', {'job': job})

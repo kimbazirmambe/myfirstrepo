@@ -14,7 +14,8 @@ from .models import NewsSource
 def source_list(request):
     form = NewsSourceForm(request.POST if request.method == "POST" else None)
     if request.method == "POST" and form.is_valid():
-        form.save()
+        source = form.save()
+        queue_archive(source, request.user)
         if len(settings.COLLECTOR_TOKEN) >= 32:
             messages.success(request, "Источник добавлен и поставлен в очередь автоматической проверки.")
         else:
@@ -52,6 +53,8 @@ def source_edit(request, pk):
         source.collection_requested = True
         source.collection_error = ""
         source.save()
+        if (source.rss_url, source.keywords, source.exclude_keywords) != previous_rules:
+            queue_archive(source, request.user)
         messages.success(request, "Источник обновлён; запрос на проверку сохранён.")
         return redirect("sources:list")
     return render(request, "sources/source_edit.html", {"form": form})
@@ -67,3 +70,11 @@ def source_retry(request, pk):
         source.save(update_fields=["collection_requested", "collection_error"])
         messages.success(request, "Запрос на проверку сохранён. Результат появится после ближайшего запуска подключённого сборщика.")
     return redirect("sources:list")
+
+
+def queue_archive(source, user):
+    from collectors.archive import terms
+    from newsroom.models import ArchiveSearch
+    if source.is_active and terms(source.keywords):
+        ArchiveSearch.objects.filter(source=source, status__in=['queued', 'running']).update(status='cancelled')
+        ArchiveSearch.objects.create(source=source, source_url=source.rss_url, query=source.keywords, created_by=user)

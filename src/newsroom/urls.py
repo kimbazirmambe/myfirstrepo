@@ -3,6 +3,10 @@ from . import views
 
 app_name = "newsroom"
 urlpatterns = [
+    path("articles/search/new/", views.archive_start, name="archive-start"),
+    path("articles/search/<int:pk>/", views.archive_detail, name="archive"),
+    path("articles/<int:pk>/generate/", views.generate_post, name="generate"),
+    path("generation/<int:pk>/", views.generation_detail, name="generation"),
     path("articles/", views.article_list, name="articles"),
     path("articles/add/", views.article_add, name="article-add"),
     path("articles/import/", views.article_import, name="import"),

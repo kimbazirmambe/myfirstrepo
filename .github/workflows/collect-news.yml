@@ -3,6 +3,11 @@ on:
   schedule:
     - cron: '7,22,37,52 * * * *'
   workflow_dispatch:
+    inputs:
+      verify_gemini:
+        description: 'One real Gemini Free Tier check on a public podelu.by article (requires a key from a project without billing)'
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -30,6 +35,10 @@ jobs:
         env:
           PYTHONUTF8: '1'
           HUB_BASE_URL: ${{ vars.HUB_BASE_URL || 'https://kimbazirmambe.pythonanywhere.com' }}
-          AI_ENABLED: ${{ vars.AI_ENABLED }}
-          AI_MODEL: ${{ vars.AI_MODEL }}
-          MARKETING_AI_KEY: ${{ secrets.MARKETING_AI_KEY }}
+          MARKETING_GEMINI_KEY: ${{ secrets.MARKETING_GEMINI_KEY }}
+      - name: Verify free AI on a public article
+        if: github.event_name == 'workflow_dispatch' && inputs.verify_gemini
+        run: python scripts/verify_gemini.py
+        env:
+          PYTHONUTF8: '1'
+          MARKETING_GEMINI_KEY: ${{ secrets.MARKETING_GEMINI_KEY }}

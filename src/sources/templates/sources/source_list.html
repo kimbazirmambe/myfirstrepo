@@ -45,7 +45,7 @@
 <section class="page-heading" aria-labelledby="sources-title">
   <p class="eyebrow">ВАША БИБЛИОТЕКА ИСТОЧНИКОВ</p>
   <h1 id="sources-title">Источники новостей</h1>
-  <p class="intro">Добавьте сайт или RSS. Подключённый сборщик найдёт новые статьи и создаст черновики для трёх каналов. Утверждение всегда остаётся за вами.</p>
+  <p class="intro">Добавьте сайт и ключевые слова — сборщик проверит общедоступные статьи из sitemap. Откройте найденную статью и нажмите «Сгенерировать пост», чтобы получить черновик выбранного формата. Для RSS также работает проверка последних материалов.</p>
 </section>
 {% if not collector_configured %}<p class="notification">Автосборщик не подключён. Добавление источника пока только сохраняет адрес. <a href="{% url 'newsroom:settings' %}">Проверить подключения</a></p>{% else %}<p class="help-text toolbar">Ключ сборщика настроен. При включённом workflow Collect news новый источник проверяется в ближайшем запуске (обычно до 15 минут); существующие — не чаще раза в час. Возможны задержки. Время последней проверки ниже подтверждает реальную обработку.</p>{% endif %}
 <div class="sources-layout">
@@ -56,7 +56,7 @@
       <div class="source-item-heading"><h3>{{ source.name }}</h3><span class="source-status{% if not source.is_active %} inactive{% endif %}">{% if source.is_active %}Активен{% else %}Неактивен{% endif %}</span></div>
       <p class="source-url">{{ source.rss_url }}</p>
       {% if source.collection_error %}<p class="errorlist">{{ source.collection_error }}</p>{% elif source.collection_requested %}<p class="help-text">Ожидает проверки{% if not collector_configured %} — подключите сборщик{% endif %}.</p>{% elif source.last_checked_at %}<p class="help-text">Последняя проверка: {{ source.last_checked_at|date:"d.m.Y H:i" }} UTC · Новых статей: {{ source.last_added_count }} · Отфильтровано: {{ source.last_filtered_count }}</p>{% endif %}
-      <div class="form-actions toolbar"><a class="button button-secondary" href="{% url 'sources:edit' source.pk %}">Изменить</a>{% if source.is_active %}<form method="post" action="{% url 'sources:retry' source.pk %}">{% csrf_token %}<button class="button button-secondary">Запросить проверку</button></form>{% endif %}</div>
+      <div class="form-actions toolbar"><a class="button button-secondary" href="{% url 'newsroom:archive-start' %}?source={{ source.pk }}">Поиск по архиву</a><a class="button button-secondary" href="{% url 'sources:edit' source.pk %}">Изменить</a>{% if source.is_active %}<form method="post" action="{% url 'sources:retry' source.pk %}">{% csrf_token %}<button class="button button-secondary">Запросить проверку</button></form>{% endif %}</div>
       <p class="help-text"><a href="{% url 'newsroom:articles' %}?source={{ source.pk }}">Статьи источника: {{ source.article_count }}</a></p>
       <div class="source-item-footer"><span>Добавлен {{ source.created_at|date:"d.m.Y H:i" }} UTC</span><a class="delete-link" href="{% url 'sources:delete' source.pk %}" aria-label="Удалить источник {{ source.name }}">Удалить</a></div>
     </article>

@@ -95,13 +95,13 @@ class WebCollectorTests(unittest.TestCase):
 
 class CollectorRunnerTests(unittest.TestCase):
     def test_no_credentials_means_no_requests(self):
-        with patch.dict(os.environ, {"COLLECTOR_TOKEN": "", "HUB_BASE_URL": ""}), patch.object(run_collector, "hub_call") as hub, contextlib.redirect_stderr(io.StringIO()):
+        with patch("run_collector.run_jobs", return_value={"batches": 0, "generations": 0}), patch.dict(os.environ, {"COLLECTOR_TOKEN": "", "HUB_BASE_URL": ""}), patch.object(run_collector, "hub_call") as hub, contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(run_collector.main(), 1)
             hub.assert_not_called()
 
     def test_one_failed_source_is_reported_and_next_source_runs(self):
         source_rows = [{"id": 1, "url": "https://example.com/one"}, {"id": 2, "url": "https://example.com/two"}]
-        with patch.dict(os.environ, {"COLLECTOR_TOKEN": "test-only-" + "x" * 40, "HUB_BASE_URL": "https://example.pythonanywhere.com"}), patch.object(run_collector, "hub_call", side_effect=[{"sources": source_rows}, {"added": 0, "drafts": 0}, {"added": 1, "drafts": 3}]) as hub, patch.object(run_collector, "collect_source", side_effect=[CollectionError("robots denied"), [{"title": "News", "url": "https://example.com/news"}]]) as collect, contextlib.redirect_stdout(io.StringIO()):
+        with patch("run_collector.run_jobs", return_value={"batches": 0, "generations": 0}), patch.dict(os.environ, {"COLLECTOR_TOKEN": "test-only-" + "x" * 40, "HUB_BASE_URL": "https://example.pythonanywhere.com"}), patch.object(run_collector, "hub_call", side_effect=[{"sources": source_rows}, {"added": 0, "drafts": 0}, {"added": 1, "drafts": 3}]) as hub, patch.object(run_collector, "collect_source", side_effect=[CollectionError("robots denied"), [{"title": "News", "url": "https://example.com/news"}]]) as collect, contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(run_collector.main(), 0)
             self.assertEqual(collect.call_count, 2)
             self.assertEqual(hub.call_args_list[1].args[3]["error"], "robots denied")
