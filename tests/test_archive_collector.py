@@ -104,3 +104,28 @@ class GeminiTests(unittest.TestCase):
             generate_post(self.article, 'social', 'Редакция')
         with patch.dict(os.environ, {'MARKETING_GEMINI_KEY': 'test-only'}), self.assertRaises(WritingError):
             generate_post({**self.article, 'content_complete': False}, 'social', 'Редакция')
+
+
+class SiteRefusalTests(unittest.TestCase):
+    def test_429_stops_other_pages_without_immediate_retries(self):
+        from collectors.web import Fetcher, SiteAccessError
+        fetcher = Fetcher()
+        error = HTTPError('https://example.com/a', 429, 'limit', {'Retry-After': '60'}, None)
+        with patch('collectors.web.public_url', side_effect=lambda url: url), patch.object(fetcher, '_robots'), patch.object(fetcher, '_raw', side_effect=error) as raw:
+            for url in ('https://example.com/a', 'https://example.com/b'):
+                with self.assertRaises(SiteAccessError):
+                    fetcher.get(url)
+            self.assertEqual(raw.call_count, 1)
+
+    def test_archive_host_refusal_stops_job_without_advancing_cursor(self):
+        from collectors.web import SiteAccessError
+        queue = {'search': {'id': 2, 'source_url': 'https://example.com/', 'query': 'test',
+                            'cursor': 0, 'discover': False, 'urls': ['https://example.com/a', 'https://example.com/b']}}
+        call = Mock(side_effect=[queue, {}, {}])
+        with patch('collectors.job_runner.read_public_article', side_effect=SiteAccessError('HTTP 429; stopped')) as reader:
+            run_jobs(call, max_batches=1)
+        self.assertEqual(reader.call_count, 1)
+        payload = call.call_args_list[1].args[1]
+        self.assertIn('error', payload)
+        self.assertNotIn('rows', payload)
+        self.assertEqual(payload['cursor'], 0)

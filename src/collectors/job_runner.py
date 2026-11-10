@@ -3,12 +3,12 @@ import os
 import time
 
 from .archive import discover_archive, read_public_article
-from .web import CollectionError, Fetcher
+from .web import CollectionError, Fetcher, SiteAccessError
 from .writing import WritingError, generate_post
 
 
-def run_jobs(call, max_batches=6, budget_seconds=240):
-    fetcher = Fetcher()
+def run_jobs(call, max_batches=6, budget_seconds=240, fetcher=None):
+    fetcher = fetcher or Fetcher()
     started = time.monotonic()
     searches = 0
     generations = 0
@@ -45,6 +45,8 @@ def run_jobs(call, max_batches=6, budget_seconds=240):
                     for url in search['urls']:
                         try:
                             row = read_public_article(url, fetcher)
+                        except SiteAccessError:
+                            raise
                         except CollectionError as error:
                             row = {'error': str(error)[:500]}
                         row['requested_url'] = url

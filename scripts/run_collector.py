@@ -11,7 +11,7 @@ from urllib.request import Request, build_opener
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from collectors.job_runner import run_jobs
 from collectors.writing import WritingError
-from collectors.web import CollectionError, NoRedirect, collect_source
+from collectors.web import CollectionError, Fetcher, NoRedirect, collect_source
 
 
 def hub_call(base, token, path, payload=None):
@@ -50,12 +50,13 @@ def main(check_only=False):
         if check_only:
             print(f"Published collector endpoint ready; eligible sources: {len(sources)}")
             return 0
-        jobs = run_jobs(lambda path, payload=None: hub_call(base, token, path, payload))
+        fetcher = Fetcher()
+        jobs = run_jobs(lambda path, payload=None: hub_call(base, token, path, payload), fetcher=fetcher)
         print(f"Archive batches: {jobs['batches']}; generation requests: {jobs['generations']}")
         for source in sources:
             payload = {"source_id": source["id"], "source_url": source["url"], "articles": []}
             try:
-                rows = collect_source(source["url"], known_urls=source.get("known_urls", []))
+                rows = collect_source(source["url"], fetcher=fetcher, known_urls=source.get("known_urls", []))
                 for row in rows:
                     row["url"] = canonical_url(row["url"])
                 rows = [row for row in rows if row["url"] not in source.get("known_urls", [])][:3]
