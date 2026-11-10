@@ -43,6 +43,7 @@ def source_delete(request, pk):
 @require_http_methods(["GET", "POST"])
 def source_edit(request, pk):
     source = get_object_or_404(NewsSource, pk=pk)
+    previous_active = source.is_active
     previous_rules = (source.rss_url, source.keywords, source.exclude_keywords)
     form = NewsSourceForm(request.POST if request.method == "POST" else None, instance=source)
     if request.method == "POST" and form.is_valid():
@@ -53,8 +54,9 @@ def source_edit(request, pk):
         source.collection_requested = True
         source.collection_error = ""
         source.save()
-        if (source.rss_url, source.keywords, source.exclude_keywords) != previous_rules:
-            queue_archive(source, request.user)
+        changed = (source.rss_url, source.keywords, source.exclude_keywords) != previous_rules
+        if changed or (source.is_active and not previous_active):
+            queue_archive(source, request.user, replace=changed)
         messages.success(request, "Источник обновлён; запрос на проверку сохранён.")
         return redirect("sources:list")
     return render(request, "sources/source_edit.html", {"form": form})
@@ -72,9 +74,11 @@ def source_retry(request, pk):
     return redirect("sources:list")
 
 
-def queue_archive(source, user):
+def queue_archive(source, user, replace=True):
     from collectors.archive import terms
     from newsroom.models import ArchiveSearch
     if source.is_active and terms(source.keywords):
+        if not replace and ArchiveSearch.objects.filter(source=source, status__in=['queued', 'running']).exists():
+            return
         ArchiveSearch.objects.filter(source=source, status__in=['queued', 'running']).update(status='cancelled')
         ArchiveSearch.objects.create(source=source, source_url=source.rss_url, query=source.keywords, created_by=user)

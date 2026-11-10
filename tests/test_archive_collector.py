@@ -83,8 +83,10 @@ class GeminiTests(unittest.TestCase):
         draft = generate_post(self.article, 'email', 'Редакция')
         self.assertEqual(draft['subject'], 'Тема')
         request = opener.return_value.open.call_args.args[0]
+        self.assertEqual(request.full_url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent')
         self.assertNotIn('test-not-a-real-key', request.full_url)
         payload = json.loads(request.data)
+        self.assertNotIn('tools', payload)
         self.assertIn(self.article['content_text'], payload['contents'][0]['parts'][0]['text'])
         self.assertEqual(opener.return_value.open.call_count, 1)
 
@@ -104,3 +106,41 @@ class GeminiTests(unittest.TestCase):
             generate_post(self.article, 'social', 'Редакция')
         with patch.dict(os.environ, {'MARKETING_GEMINI_KEY': 'test-only'}), self.assertRaises(WritingError):
             generate_post({**self.article, 'content_complete': False}, 'social', 'Редакция')
+
+
+class SiteRefusalTests(unittest.TestCase):
+    def test_429_stops_other_pages_without_immediate_retries(self):
+        from collectors.web import Fetcher, SiteAccessError
+        fetcher = Fetcher()
+        error = HTTPError('https://example.com/a', 429, 'limit', {'Retry-After': '60'}, None)
+        with patch('collectors.web.public_url', side_effect=lambda url: url), patch.object(fetcher, '_robots'), patch.object(fetcher, '_raw', side_effect=error) as raw:
+            for url in ('https://example.com/a', 'https://example.com/b'):
+                with self.assertRaises(SiteAccessError):
+                    fetcher.get(url)
+            self.assertEqual(raw.call_count, 1)
+
+    def test_archive_host_refusal_stops_job_without_advancing_cursor(self):
+        from collectors.web import SiteAccessError
+        queue = {'search': {'id': 2, 'source_url': 'https://example.com/', 'query': 'test',
+                            'cursor': 0, 'discover': False, 'urls': ['https://example.com/a', 'https://example.com/b']}}
+        call = Mock(side_effect=[queue, {}, {}])
+        with patch('collectors.job_runner.read_public_article', side_effect=SiteAccessError('HTTP 429; stopped')) as reader:
+            run_jobs(call, max_batches=1)
+        self.assertEqual(reader.call_count, 1)
+        payload = call.call_args_list[1].args[1]
+        self.assertIn('error', payload)
+        self.assertNotIn('rows', payload)
+        self.assertEqual(payload['cursor'], 0)
+
+
+class GeminiDiagnosticsTests(unittest.TestCase):
+    def test_invalid_key_classification_never_echoes_provider_secrets(self):
+        import io
+        from collectors.writing import gemini_error
+        private = 'private-value-that-must-not-be-logged'
+        body = json.dumps({'error': {'status': 'INVALID_ARGUMENT', 'message': 'API key not valid: ' + private,
+            'details': [{'reason': 'API_KEY_INVALID', 'metadata': {'key': private}}]}}).encode()
+        error = HTTPError('https://example.com/' + private, 400, private, {}, io.BytesIO(body))
+        result = gemini_error(error)
+        self.assertIn('HTTP 400 INVALID_ARGUMENT API_KEY_INVALID', result)
+        self.assertNotIn(private, result)

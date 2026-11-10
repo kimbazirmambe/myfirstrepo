@@ -24,6 +24,11 @@ class CollectionError(Exception):
     pass
 
 
+class SiteAccessError(CollectionError):
+    """A host-level refusal: do not probe other pages during this run."""
+    pass
+
+
 def public_url(url):
     try:
         parts = urlsplit(url)
@@ -47,6 +52,7 @@ class NoRedirect(HTTPRedirectHandler):
 class Fetcher:
     def __init__(self):
         self.opener = build_opener(NoRedirect)
+        self.blocked_hosts = set()
         self.rules = {}
         self.last_request = {}
 
@@ -83,7 +89,8 @@ class Fetcher:
                 if error.code == 404:
                     body, encoding = b"", "utf-8"
                 else:
-                    raise CollectionError(f"robots.txt недоступен (HTTP {error.code}); сбор остановлен.") from None
+                    self.blocked_hosts.add(parts.hostname)
+                    raise SiteAccessError(f"robots.txt недоступен (HTTP {error.code}); сбор остановлен.") from None
             self.rules[key] = Protego.parse(body.decode(encoding, errors="replace"))
         if not self.rules[key].can_fetch(url, USER_AGENT):
             raise CollectionError("Этот путь запрещён правилами robots.txt.")
@@ -91,17 +98,23 @@ class Fetcher:
     def get(self, url):
         for _ in range(4):
             url = public_url(url)
+            if urlsplit(url).hostname in self.blocked_hosts:
+                raise SiteAccessError("Доступ к сайту ограничен; новые запросы в этом запуске не выполняются.")
             self._robots(url)
             try:
                 body, encoding = self._raw(url)
                 text = body.decode(encoding, errors="replace")
                 if re.search(r'<title>\s*(?:just a moment|captcha|access denied)', text, re.I):
-                    raise CollectionError("Сайт требует проверку доступа; обход не выполняется.")
+                    self.blocked_hosts.add(urlsplit(url).hostname)
+                    raise SiteAccessError("Сайт требует проверку доступа; обход не выполняется.")
                 return text, url
             except HTTPError as error:
                 if error.code in {301, 302, 303, 307, 308} and error.headers.get("Location"):
                     url = urljoin(url, error.headers["Location"])
                     continue
+                if error.code in {403, 429}:
+                    self.blocked_hosts.add(urlsplit(url).hostname)
+                    raise SiteAccessError(f"Источник ответил HTTP {error.code}; запросы к сайту остановлены без обхода ограничений.") from None
                 raise CollectionError(f"Источник ответил HTTP {error.code}; ограничения не обходятся.") from None
         raise CollectionError("Слишком много перенаправлений.")
 
