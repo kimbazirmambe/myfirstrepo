@@ -135,3 +135,17 @@ class ArchiveJobTests(TestCase):
         job.refresh_from_db()
         self.assertEqual(job.status, 'cancelled')
         self.assertTrue(ArchiveSearch.objects.filter(source=source, query='налоги', status='queued').exists())
+
+    def test_activating_source_starts_search_and_preserves_existing_pending_search(self):
+        self.client.force_login(self.staff)
+        self.source.is_active = False
+        self.source.keywords = 'банкротства'
+        self.source.save()
+        self.job.delete()
+        data = {'name': self.source.name, 'rss_url': self.source.rss_url, 'keywords': 'банкротства', 'is_active': 'on'}
+        url = reverse('sources:edit', args=[self.source.pk])
+        self.client.post(url, data)
+        job = ArchiveSearch.objects.get(source=self.source)
+        self.client.post(url, {**data, 'is_active': ''})
+        self.client.post(url, data)
+        self.assertEqual(ArchiveSearch.objects.get(source=self.source).pk, job.pk)

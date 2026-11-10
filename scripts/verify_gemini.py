@@ -10,7 +10,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from collectors.archive import read_public_article
 from collectors.web import CollectionError, Fetcher, NoRedirect
-from collectors.writing import WritingError, generate_post, gemini_error
+from collectors.writing import WritingError, generate_post, gemini_error, GEMINI_MODEL
 
 
 def main():
@@ -29,9 +29,12 @@ def main():
         names = [item.get('name', '') for item in models.get('models', [])
                  if 'generateContent' in item.get('supportedGenerationMethods', [])]
         names = [name for name in names if re.fullmatch(r'models/gemini-[a-z0-9.-]{1,80}', name)]
-        print('Available Gemini model IDs: ' + ', '.join(names), flush=True)
         if '--models-only' in sys.argv:
+            print('Available Gemini model IDs: ' + ', '.join(names), flush=True)
             return 0
+        if 'models/' + GEMINI_MODEL not in names:
+            raise WritingError('Выбранная бесплатная модель не найдена в списке доступных моделей. Автоматического переключения нет.')
+        print('Gemini model metadata accessible: ' + GEMINI_MODEL, flush=True)
         article = read_public_article('https://podelu.by/article/bankrotstvo-glazami-byvshego-sobstvennika-chto-vazhno-znat-do-procedury', Fetcher())
         draft = generate_post(article, 'messenger', 'Редакция Marketing Hub')
     except (CollectionError, WritingError) as error:

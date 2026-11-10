@@ -6,6 +6,8 @@ from urllib.request import Request, build_opener
 
 from .web import NoRedirect
 
+GEMINI_MODEL = "gemini-3.5-flash-lite"
+
 
 class WritingError(Exception):
     pass
@@ -95,7 +97,7 @@ def generate_post(article, channel, editorial_name):
                 'required': ['subject', 'body'],
             }},
     }
-    req = Request('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent',
+    req = Request(f'https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent',
                   data=json.dumps(payload).encode(), headers={'x-goog-api-key': key, 'Content-Type': 'application/json'})
     try:
         with build_opener(NoRedirect).open(req, timeout=60) as response:
@@ -148,5 +150,5 @@ def gemini_error(error):
     if error.code == 429:
         return prefix + 'Бесплатная квота Gemini исчерпана или запрос ограничен. Повторите позже. Платное переключение не выполнялось.'
     if error.code in {400, 401, 403, 404}:
-        return prefix + 'Google отклонил запрос. Проверьте ключ, доступность Free Tier и модель gemini-2.5-flash-lite. Ограничения не обходятся.'
+        return prefix + 'Google отклонил запрос. Проверьте ключ, доступность Free Tier и модель Gemini Flash-Lite. Ограничения не обходятся.'
     return prefix + 'Gemini временно недоступен. Повторите позже.'

@@ -38,7 +38,7 @@ jobs:
           MARKETING_GEMINI_KEY: ${{ secrets.MARKETING_GEMINI_KEY }}
       - name: Verify free AI on a public article
         if: github.event_name == 'workflow_dispatch' && inputs.verify_gemini
-        run: python scripts/verify_gemini.py --models-only
+        run: python scripts/verify_gemini.py
         env:
           PYTHONUTF8: '1'
           MARKETING_GEMINI_KEY: ${{ secrets.MARKETING_GEMINI_KEY }}

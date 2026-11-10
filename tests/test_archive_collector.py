@@ -83,8 +83,10 @@ class GeminiTests(unittest.TestCase):
         draft = generate_post(self.article, 'email', 'Редакция')
         self.assertEqual(draft['subject'], 'Тема')
         request = opener.return_value.open.call_args.args[0]
+        self.assertEqual(request.full_url, 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent')
         self.assertNotIn('test-not-a-real-key', request.full_url)
         payload = json.loads(request.data)
+        self.assertNotIn('tools', payload)
         self.assertIn(self.article['content_text'], payload['contents'][0]['parts'][0]['text'])
         self.assertEqual(opener.return_value.open.call_count, 1)
 
