@@ -1,0 +1,11 @@
+{% extends "dashboard/base.html" %}
+{% block title %}Генерация поста{% endblock %}
+{% block content %}
+<section class="page-heading"><p class="eyebrow">ИИ-ЧЕРНОВИК</p><h1>{{ job.get_channel_display }}</h1><p class="intro">{{ job.article.title }}</p></section>
+<section class="form-panel"><h2>{{ job.get_status_display }}</h2>{% if job.error %}<p class="message">{{ job.error }}</p>{% endif %}
+{% if job.draft %}<p>Создан самостоятельный черновик с источником. Его необходимо проверить и утвердить.</p><a class="button button-primary compact" href="{% url 'newsroom:draft' job.draft.pk %}">Открыть и отредактировать пост</a>{% elif job.status == 'queued' or job.status == 'running' %}<p>Запрос выполнится при ближайшем запуске сборщика, обычно в пределах 15 минут. Страница обновляется автоматически. Ключ должен быть подключён, а бесплатная квота доступна.</p>{% else %}<a class="button button-primary compact" href="{% url 'newsroom:generate' job.article.pk %}">Повторить после устранения причины</a>{% endif %}</section>
+<p><a href="{% url 'newsroom:article' job.article.pk %}">Вернуться к статье</a></p>
+{% if job.status == 'queued' or job.status == 'running' %}
+<script>setInterval(() => { if (!document.hidden) location.reload(); }, 30000);</script>
+{% endif %}
+{% endblock %}

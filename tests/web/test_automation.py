@@ -49,30 +49,22 @@ class AutomationTests(TestCase):
         self.source.save()
         self.assertEqual(len(self.client.get('/collector/queue/', **self.headers).json()['sources']), 1)
 
-    def test_ingestion_creates_article_and_three_unapproved_drafts_once(self):
+    def test_ingestion_saves_articles_without_creating_unrequested_templates(self):
         response = self.send()
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()['drafts'], 3)
-        self.assertEqual(Draft.objects.count(), 3)
-        self.assertEqual(set(Draft.objects.values_list('channel', flat=True)), {'social', 'messenger', 'email'})
-        for draft in Draft.objects.all():
-            self.assertEqual(draft.status, 'draft')
-            self.assertEqual(draft.generation_method, 'factual_template')
-            self.assertIsNone(draft.approved_by)
-            self.assertIn(self.article['url'], draft.body)
-            self.assertTrue(draft.revisions.get().automated)
-        self.assertIsNone(Article.objects.get().published_at)
-        response = self.send()
         self.assertEqual(response.json()['drafts'], 0)
+        self.assertFalse(Draft.objects.exists())
+        self.assertIsNone(Article.objects.get().published_at)
+        self.send()
         self.assertEqual(Article.objects.count(), 1)
-        self.assertEqual(Draft.objects.count(), 3)
+        self.assertFalse(Draft.objects.exists())
 
     def test_manual_text_is_not_overwritten(self):
         article = Article.objects.create(title='Old', url=self.article['url'])
         Draft.objects.create(article=article, channel='social', body='Human text')
         self.send()
         self.assertEqual(Draft.objects.get(channel='social').body, 'Human text')
-        self.assertEqual(Draft.objects.count(), 3)
+        self.assertEqual(Draft.objects.count(), 1)
 
     def test_keywords_filter_before_drafts_are_created(self):
         self.source.keywords = 'marketing'
@@ -136,7 +128,7 @@ class AutomationTests(TestCase):
         self.assertIn('ИИ', self.source.collection_error)
         self.assertFalse(Article.objects.get().auto_prepared)
         response = self.send()
-        self.assertEqual(response.json()['drafts'], 3)
+        self.assertEqual(response.json()['drafts'], 0)
         self.assertEqual(Article.objects.count(), 1)
 
     def test_filtered_urls_are_remembered_so_collection_can_progress(self):
@@ -167,4 +159,4 @@ class AutomationTests(TestCase):
         self.source.refresh_from_db()
         self.assertEqual(self.source.seen_urls, [])
         self.assertEqual(self.source.last_filtered_count, 0)
-        self.assertEqual(self.send().json()['drafts'], 3)
+        self.assertEqual(self.send().json()['drafts'], 0)

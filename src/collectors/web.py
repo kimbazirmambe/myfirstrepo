@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
+import json
 import ipaddress
 import re
 import socket
@@ -180,9 +181,25 @@ def metadata(text, url, fallback_title):
     date = soup.find("meta", attrs={"property": "article:published_time"})
     if date is None:
         date = soup.find("time", attrs={"datetime": True})
+    published = date_string(date.get("content") or date.get("datetime")) if date else None
+    if not published:
+        for script in soup.select('script[type="application/ld+json"]'):
+            try:
+                structured = json.loads(script.get_text())
+                nodes = structured if isinstance(structured, list) else [structured]
+                nodes += [node for entry in list(nodes) if isinstance(entry, dict) for node in entry.get('@graph', [])]
+                for node in nodes:
+                    if isinstance(node, dict) and node.get('@type') in {'Article', 'NewsArticle', 'BlogPosting', 'WebPage'}:
+                        published = date_string(node.get('datePublished'))
+                        if published:
+                            break
+            except (ValueError, TypeError):
+                continue
+            if published:
+                break
     return {"title": clean_text(title.get_text(" ", strip=True), 300) if title else fallback_title,
             "url": url, "body": clean_text(description.get("content", "")) if description else "",
-            "published_at": date_string(date.get("content") or date.get("datetime")) if date else None}
+            "published_at": published}
 
 
 def collect_source(url, fetcher=None, known_urls=()):

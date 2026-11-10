@@ -63,3 +63,21 @@ class DraftForm(forms.ModelForm):
 class ApprovalForm(forms.Form):
     version = forms.IntegerField(widget=forms.HiddenInput)
     reviewed = forms.BooleanField(label="Я проверил факты, источник и права на использование текста")
+
+
+class ArchiveSearchForm(forms.Form):
+    source = forms.ModelChoiceField(label='Сайт / источник', queryset=NewsSource.objects.filter(is_active=True))
+    query = forms.CharField(label='Что искать', max_length=500, help_text='Например: банкротства. Формы слов учитываются. Несколько слов — вместе; варианты через запятую — любой из них.')
+
+    def clean_query(self):
+        from collectors.archive import terms
+        value = self.cleaned_data['query']
+        if not terms(value):
+            raise forms.ValidationError('Введите хотя бы одно слово для поиска.')
+        return value
+
+
+class GeneratePostForm(forms.Form):
+    channel = forms.ChoiceField(label='Формат публикации', choices=Draft.Channel.choices)
+    editorial_name = forms.CharField(label='Название вашей редакции', max_length=100, initial='Наша редакция')
+    consent = forms.BooleanField(label='Разрешаю передать общедоступный текст статьи в Gemini Free Tier. Google может использовать эти данные для улучшения сервисов. Конфиденциальные данные не передаю.')

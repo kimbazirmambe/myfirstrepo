@@ -1,4 +1,5 @@
 """Idempotent ingestion and explicitly labelled factual draft templates."""
+from collectors.archive import matches_query
 from django.db import transaction
 from django.utils import timezone
 
@@ -41,14 +42,14 @@ def ingest(source, rows, error=""):
     seen = []
     counts = {"added": 0, "duplicates": 0, "filtered": 0, "drafts": 0, "writing_errors": 0}
     if not error:
-        include = [w.strip().casefold() for w in source.keywords.split(",") if w.strip()]
-        exclude = [w.strip().casefold() for w in source.exclude_keywords.split(",") if w.strip()]
+        include = source.keywords.strip()
+        exclude = source.exclude_keywords.strip()
         for row in rows:
             title = row["title"].strip()
             url = normalize_url(row["url"])
             body = row.get("body", "")
             text = (title + " " + body).casefold()
-            if (include and not any(w in text for w in include)) or any(w in text for w in exclude):
+            if (include and not matches_query(text, include)) or (exclude and matches_query(text, exclude)):
                 counts["filtered"] += 1
                 seen.append(url)
                 continue
@@ -61,7 +62,8 @@ def ingest(source, rows, error=""):
                 counts["writing_errors"] += 1
             else:
                 seen.append(url)
-                counts["drafts"] += automatic_drafts(article, row.get("drafts"))
+                if row.get("drafts"):
+                    counts["drafts"] += automatic_drafts(article, row["drafts"])
     source.last_checked_at = timezone.now()
     source.collection_requested = False
     source.collection_error = error[:500] if error else ("Статьи найдены, но ИИ не подготовил черновики. Проверьте подключение провайдера и запросите повторную проверку." if counts["writing_errors"] else "")

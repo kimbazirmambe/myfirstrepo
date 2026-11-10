@@ -9,13 +9,14 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, build_opener
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from collectors.writing import WritingError, generate_publications
+from collectors.job_runner import run_jobs
+from collectors.writing import WritingError
 from collectors.web import CollectionError, NoRedirect, collect_source
 
 
 def hub_call(base, token, path, payload=None):
     # Never follow redirects while carrying the machine credential.
-    data = json.dumps(payload).encode() if payload is not None else None
+    data = json.dumps(payload, ensure_ascii=False).encode() if payload is not None else None
     req = Request(base + path, data=data, headers={"Authorization": "Bearer " + token, "Content-Type": "application/json"})
     for attempt in range(7):
         try:
@@ -49,6 +50,8 @@ def main(check_only=False):
         if check_only:
             print(f"Published collector endpoint ready; eligible sources: {len(sources)}")
             return 0
+        jobs = run_jobs(lambda path, payload=None: hub_call(base, token, path, payload))
+        print(f"Archive batches: {jobs['batches']}; generation requests: {jobs['generations']}")
         for source in sources:
             payload = {"source_id": source["id"], "source_url": source["url"], "articles": []}
             try:
@@ -56,14 +59,6 @@ def main(check_only=False):
                 for row in rows:
                     row["url"] = canonical_url(row["url"])
                 rows = [row for row in rows if row["url"] not in source.get("known_urls", [])][:3]
-                for row in rows:
-                    try:
-                        generated = generate_publications(row)
-                    except WritingError as error:
-                        row["writing_error"] = str(error)[:500]
-                    else:
-                        if generated is not None:
-                            row["drafts"] = generated
                 payload["articles"] = rows
             except (CollectionError, WritingError) as error:
                 payload["error"] = str(error)[:500]
