@@ -114,10 +114,39 @@ def generate_post(article, channel, editorial_name):
             raise ValueError
         return {'subject': draft['subject'], 'body': draft['body']}
     except HTTPError as error:
-        if error.code == 429:
-            raise WritingError('Бесплатная квота Gemini исчерпана или запрос ограничен. Повторите позже. Платное переключение не выполнялось.') from None
-        if error.code in {400, 401, 403, 404}:
-            raise WritingError('Gemini отклонил запрос. Проверьте ключ, доступность Free Tier в вашей стране и модель gemini-2.5-flash-lite. Ограничения не обходятся.') from None
-        raise WritingError('Gemini временно недоступен. Повторите запрос позже.') from None
+        raise WritingError(gemini_error(error)) from None
     except (OSError, ValueError, KeyError, TypeError, IndexError, AttributeError):
         raise WritingError('Gemini не вернул корректный полный черновик. Текст не сохранён как готовый; повторите позже.') from None
+
+
+def gemini_error(error):
+    """Return only fixed classifications, never provider text, URLs or key values."""
+    status, reason, message = '', '', ''
+    try:
+        data = json.loads(error.read(16000)).get('error', {})
+        candidate = data.get('status')
+        if candidate in {'INVALID_ARGUMENT', 'PERMISSION_DENIED', 'UNAUTHENTICATED', 'NOT_FOUND', 'RESOURCE_EXHAUSTED', 'UNAVAILABLE', 'FAILED_PRECONDITION'}:
+            status = candidate
+        allowed = {'API_KEY_INVALID', 'API_KEY_EXPIRED', 'API_KEY_HTTP_REFERRER_BLOCKED', 'API_KEY_IP_ADDRESS_BLOCKED',
+                   'API_KEY_SERVICE_BLOCKED', 'SERVICE_DISABLED', 'BILLING_DISABLED', 'CONSUMER_INVALID'}
+        for detail in data.get('details', []):
+            if isinstance(detail, dict) and detail.get('reason') in allowed:
+                reason = detail['reason']
+                break
+        text = str(data.get('message', '')).casefold()
+        if 'api key not valid' in text or reason in {'API_KEY_INVALID', 'API_KEY_EXPIRED'}:
+            message = 'Google сообщает, что ключ недействителен или истёк. Замените MARKETING_GEMINI_KEY действующим ключом Google AI Studio.'
+        elif 'location is not supported' in text or 'country' in text and 'not supported' in text:
+            message = 'Google не разрешает Gemini API для этого региона. Обход ограничений не выполняется.'
+        elif reason == 'SERVICE_DISABLED':
+            message = 'В проекте ключа не включён Generative Language API. Проверьте проект в Google AI Studio; платный биллинг включать не нужно.'
+    except (OSError, ValueError, TypeError, AttributeError):
+        pass
+    prefix = f'Gemini HTTP {error.code}' + (f' {status}' if status else '') + (f' {reason}' if reason else '') + '. '
+    if message:
+        return prefix + message
+    if error.code == 429:
+        return prefix + 'Бесплатная квота Gemini исчерпана или запрос ограничен. Повторите позже. Платное переключение не выполнялось.'
+    if error.code in {400, 401, 403, 404}:
+        return prefix + 'Google отклонил запрос. Проверьте ключ, доступность Free Tier и модель gemini-2.5-flash-lite. Ограничения не обходятся.'
+    return prefix + 'Gemini временно недоступен. Повторите позже.'

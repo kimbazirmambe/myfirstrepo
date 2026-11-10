@@ -129,3 +129,16 @@ class SiteRefusalTests(unittest.TestCase):
         self.assertIn('error', payload)
         self.assertNotIn('rows', payload)
         self.assertEqual(payload['cursor'], 0)
+
+
+class GeminiDiagnosticsTests(unittest.TestCase):
+    def test_invalid_key_classification_never_echoes_provider_secrets(self):
+        import io
+        from collectors.writing import gemini_error
+        private = 'private-value-that-must-not-be-logged'
+        body = json.dumps({'error': {'status': 'INVALID_ARGUMENT', 'message': 'API key not valid: ' + private,
+            'details': [{'reason': 'API_KEY_INVALID', 'metadata': {'key': private}}]}}).encode()
+        error = HTTPError('https://example.com/' + private, 400, private, {}, io.BytesIO(body))
+        result = gemini_error(error)
+        self.assertIn('HTTP 400 INVALID_ARGUMENT API_KEY_INVALID', result)
+        self.assertNotIn(private, result)
